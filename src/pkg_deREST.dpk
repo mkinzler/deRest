@@ -38,6 +38,8 @@ requires
 contains
   deREST in 'units\deREST.pas',
   deREST.restapi in 'units\implementation\deREST.restapi.pas',
-  deREST.restfields in 'units\implementation\deREST.restfields.pas';
+  deREST.restfielddefs in 'units\implementation\deREST.restfielddefs.pas',
+  deREST.restobject in 'units\interface\deREST.restobject.pas',
+  deREST.restcollections in 'units\interface\deREST.restcollections.pas';
 
 end.

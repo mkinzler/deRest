@@ -152,7 +152,9 @@
         <DCCReference Include="FireDACCommon.dcp"/>
         <DCCReference Include="units\deREST.pas"/>
         <DCCReference Include="units\implementation\deREST.restapi.pas"/>
-        <DCCReference Include="units\implementation\deREST.restfields.pas"/>
+        <DCCReference Include="units\implementation\deREST.restfielddefs.pas"/>
+        <DCCReference Include="units\interface\deREST.restobject.pas"/>
+        <DCCReference Include="units\interface\deREST.restcollections.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -202,7 +204,7 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\out\lib\bpl\pkg_deREST.bpl" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\19.0\Bpl\pkg_deREST.bpl" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>pkg_deREST.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
