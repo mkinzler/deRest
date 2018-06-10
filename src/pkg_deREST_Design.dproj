@@ -1,9 +1,9 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{2E850B0D-5F78-423F-9105-CBE599B51BF0}</ProjectGuid>
-        <MainSource>pkg_deREST.dpk</MainSource>
+        <ProjectGuid>{9895ECFB-3EF8-4FDD-816E-8CCF2CAAAAAB}</ProjectGuid>
+        <MainSource>pkg_deREST_Design.dpk</MainSource>
         <ProjectVersion>18.4</ProjectVersion>
-        <FrameworkType>VCL</FrameworkType>
+        <FrameworkType>None</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
@@ -79,14 +79,13 @@
         <DCC_K>false</DCC_K>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
-        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
-        <SanitizedProjectName>pkg_deREST</SanitizedProjectName>
-        <DCC_DcpOutput>..\out\lib\$(Platform)\$(Config)</DCC_DcpOutput>
+        <SanitizedProjectName>pkg_deREST_Design</SanitizedProjectName>
         <DCC_UnitSearchPath>..\out\lib\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
-        <DCC_UsePackage>inet;FireDAC;FireDACCommonDriver;FireDACCommon;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>inet;FireDAC;FireDACCommon;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <DCC_CBuilderOutput>None</DCC_CBuilderOutput>
@@ -117,7 +116,7 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DCC_UsePackage>rtl;dbrtl;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;dbrtl;pkg_deREST;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <DCC_UsePackage>rtl;dbrtl;$(DCC_UsePackage)</DCC_UsePackage>
@@ -133,6 +132,7 @@
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -145,14 +145,13 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
-        <DCCReference Include="inet.dcp"/>
+        <DCCReference Include="designide.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
+        <DCCReference Include="inet.dcp"/>
         <DCCReference Include="FireDAC.dcp"/>
-        <DCCReference Include="FireDACCommonDriver.dcp"/>
         <DCCReference Include="FireDACCommon.dcp"/>
-        <DCCReference Include="units\deREST.pas"/>
-        <DCCReference Include="units\implementation\deREST.restapi.pas"/>
-        <DCCReference Include="units\implementation\deREST.restfields.pas"/>
+        <DCCReference Include="pkg_deREST.dcp"/>
+        <DCCReference Include="units\implementation\design\deREST.edit.restapi.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -171,7 +170,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">pkg_deREST.dpk</Source>
+                    <Source Name="MainSource">pkg_deREST_Design.dpk</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\19.0\bpl\LockBox3FMXDD250.bpl">TurboPack LockBox 3 FMX designtime package</Excluded_Packages>
@@ -202,9 +201,9 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\out\lib\bpl\pkg_deREST.bpl" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="..\out\lib\bpl\pkg_deREST_Design.bpl" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>pkg_deREST.bpl</RemoteName>
+                        <RemoteName>pkg_deREST_Design.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

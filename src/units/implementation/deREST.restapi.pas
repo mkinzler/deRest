@@ -5,46 +5,90 @@ uses
   System.SysUtils,
   System.Classes,
   Web.HTTPApp,
-  deREST.endpoints;
+  FireDAC.Comp.Dataset,
+  deREST.restobject,
+  deREST.restfielddefs;
 
 type
   ///  <summary>
+  ///    Callback type for events fired before and after the CRUD operations
+  ///    on any rest object within the endpoint collection.
+  ///  </summary>
+  TRESTEvent = procedure( RESTObject: IRESTObject ) of object;
+
+  ///  <summary>
   ///    Represents a REST API (collection of endpoitns).
   ///  </summary>
-  TRESTAPI = class(TComponent)
+  TRESTAPI = class(TCustomContentProducer)
   private
-    fActionsRef: TWebActionItems;
-    fDefaultAction: TWebActionItem;
-    fEndpoints: TEndpoints;
-    procedure HandleDefaultAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
-    function getName: string;
-    procedure setName(const Value: string); reintroduce;
+    fFields: TRESTFieldDefs;
+    fDataset: TFDDataset;
+    fOnBeforeRESTDelete: TRESTEvent;
+    fOnBeforeRESTUpdate: TRESTEvent;
+    fOnBeforeRESTRead: TRESTEvent;
+    fOnBeforeRESTCreate: TRESTEvent;
+    fOnAfterRESTDelete: TRESTEvent;
+    fOnAfterRESTUpdate: TRESTEvent;
+    fOnAfterRESTRead: TRESTEvent;
+    fOnAfterRESTCreate: TRESTEvent;
+    procedure SetDataset(const Value: TFDDataset);
   protected
-    procedure SetEndpoints(Value: TEndpoints);
-    procedure RemoveAction;
-    procedure AddAction;
+    procedure SetFields(Value: TRESTFieldDefs);
+  protected
+    function Content: string; override;
+    procedure Notification(AnObject: TComponent; Operation: TOperation); override;
+  public
+    procedure AddDatasetFields;
   public
     constructor Create( aOwner: TComponent ); override;
     destructor Destroy; override;
   published
-    property Endpoints: TEndpoints read fEndpoints write setEndpoints;
-    property Name: string read getName write setName;
+    property OnBeforeRESTCreate: TRESTEvent read fOnBeforeRESTCreate write fOnBeforeRESTCreate;
+    property OnAfterRESTCreate: TRESTEvent read fOnAfterRESTCreate write fOnAfterRESTCreate;
+    property OnBeforeRESTRead: TRESTEvent read fOnBeforeRESTRead write fOnAfterRESTRead;
+    property OnAfterRESTRead: TRESTEvent read fOnAfterRESTRead write fOnAfterRESTRead;
+    property OnBeforeRESTUpdate: TRESTEvent read fOnBeforeRESTUpdate write fOnBeforeRESTUpdate;
+    property OnAfterRESTUpdate: TRESTEvent read fOnAfterRESTUpdate write fOnAfterRESTUpdate;
+    property OnBeforeRESTDelete: TRESTEvent read fOnBeforeRESTDelete write fOnBeforeRESTDelete;
+    property OnAfterRESTDelete: TRESTEvent read fOnAfterRESTDelete write fOnAfterRESTDelete;
+
+    property Dataset: TFDDataset read fDataset write SetDataset;
+    property Fields: TRESTFieldDefs read fFields write setFields;
   end;
 
 implementation
 
-procedure TRESTAPI.HandleDefaultAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+procedure TRESTAPI.AddDatasetFields;
+var
+  idx: uint32;
+  utFieldName: string;
 begin
-  //-
-  Sleep(1);
+  if not assigned(Dataset) then begin
+    exit;
+  end;
+  if (Dataset.FieldDefs.Count=0) and
+     (Dataset.Fields.Count=0) then begin
+    exit;
+  end;
+  for idx := 0 to pred(Dataset.FieldDefs.Count) do begin
+    if not assigned( fFields.FieldByName[Trim(Dataset.FieldDefs.Items[idx].Name)] ) then begin
+      fFields.Add.Field := Trim(Dataset.FieldDefs.Items[idx].Name);
+    end;
+  end;
+  if (Dataset.Fields.Count=0) then begin
+    exit;
+  end;
+  for idx := 0 to pred(Dataset.Fields.Count) do begin
+    if not assigned( fFields.FieldByName[Trim(Dataset.Fields[idx].FieldName)]) then begin
+      fFields.Add.Field := Trim(Dataset.Fields[idx].FieldName);
+    end;
+  end;
 end;
 
-procedure TRESTAPI.AddAction;
+function TRESTAPI.Content: string;
 begin
-  fDefaultAction := fActionsRef.Add;
-  fDefaultAction.PathInfo := '/'+Self.Name;
-  fDefaultAction.Default := True;
-  fDefaultAction.OnAction := HandleDefaultAction;
+  AddDatasetFields;
+  Result := Dispatcher.Request.Method;
 end;
 
 constructor TRESTAPI.Create(aOwner: TComponent);
@@ -56,48 +100,34 @@ begin
     raise
       Exception.Create('TRESTManager component must be placed on a TWebModule.');
   end;
-  // Take a reference to the actions list.
-  fActionsRef := TWebModule(Owner).Actions;
-   // set the default path value
-  fDefaultAction := nil;
-  AddAction;
   // Create endpoints
-  fEndpoints := TEndpoints.Create(Self);
+  fFields := TRestFieldDefs.Create(Self);
 end;
 
 destructor TRESTAPI.Destroy;
 begin
-  RemoveAction;
-  fActionsRef := nil;
-  fEndpoints.DisposeOf;
-  fEndpoints := nil;
+  fFields := nil;
   inherited Destroy;
 end;
 
-function TRESTAPI.getName: string;
+procedure TRESTAPI.Notification(AnObject: TComponent; Operation: TOperation);
 begin
-  Result := inherited name;
-end;
-
-procedure TRESTAPI.RemoveAction;
-begin
-  if assigned(fDefaultAction) then begin
-    fDefaultAction.DisposeOf;
-    fDefaultAction := nil;
+  inherited;
+  if (Operation = TOperation.opRemove) then begin
+    if AnObject=fDataset then begin
+      fDataset := nil;
+    end;
   end;
 end;
 
-
-procedure TRESTAPI.SetEndpoints(Value: TEndpoints);
+procedure TRESTAPI.SetDataset(const Value: TFDDataset);
 begin
-  fEndpoints.Assign(Value);
+  fDataset := Value;
 end;
 
-procedure TRESTAPI.setName(const Value: string);
+procedure TRESTAPI.SetFields(Value: TRestFieldDefs);
 begin
-  inherited name := value;
-  RemoveAction;
-  AddAction;
+  fFields.Assign(Value);
 end;
 
 end.

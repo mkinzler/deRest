@@ -5,11 +5,11 @@ interface
 uses System.SysUtils, System.Classes, Web.HTTPApp, deREST, FireDAC.Stan.Intf,
   FireDAC.Stan.Option, FireDAC.Stan.Param, FireDAC.Stan.Error, FireDAC.DatS,
   FireDAC.Phys.Intf, FireDAC.DApt.Intf, FireDAC.Stan.Async, FireDAC.DApt,
-  Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client, deREST.restapi;
+  Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client, deREST.restapi,
+  Web.HTTPProd;
 
 type
   TWebModule1 = class(TWebModule)
-    FDMemTable1: TFDMemTable;
     RESTAPI1: TRESTAPI;
     procedure WebModule1DefaultHandlerAction(Sender: TObject;
       Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);

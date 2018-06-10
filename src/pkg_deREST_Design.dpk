@@ -1,4 +1,4 @@
-package pkg_deREST;
+package pkg_deREST_Design;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -29,15 +29,14 @@ package pkg_deREST;
 
 requires
   rtl,
-  inet,
+  designide,
   dbrtl,
+  inet,
   FireDAC,
-  FireDACCommonDriver,
-  FireDACCommon;
+  FireDACCommon,
+  pkg_deREST;
 
 contains
-  deREST in 'units\deREST.pas',
-  deREST.restapi in 'units\implementation\deREST.restapi.pas',
-  deREST.restfields in 'units\implementation\deREST.restfields.pas';
+  deREST.edit.restapi in 'units\implementation\design\deREST.edit.restapi.pas';
 
 end.
