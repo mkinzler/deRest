@@ -3,6 +3,7 @@ unit deREST.endpoints;
 interface
 uses
   classes,
+  Data.DB,
   FireDAC.Comp.Dataset;
 
 type
@@ -61,6 +62,7 @@ type
     procedure setName(const Value: string);
     procedure setFields(const Value: TRestFields);
     procedure setDataset(const Value: TFDDataset);
+    procedure UpdateFields( Sender: TField );
   public
     procedure Assign( Source: TPersistent ); override;
   public
@@ -138,17 +140,29 @@ begin
   inherited Destroy;
 end;
 
-procedure TEndpoint.setDataset(const Value: TFDDataset);
+procedure TEndpoint.UpdateFields( Sender: TField );
 var
-  idx: int32;
+  idx: uint32;
 begin
-  fDataset := Value;
+  Self.Fields.Clear;
+  if not assigned(fDataset) then begin
+    exit;
+  end;
   if fDataset.Fields.Count=0 then begin
     exit;
   end;
   for idx := 0 to pred(fDataset.Fields.Count) do begin
     Self.Fields.Add.SetField( fDataset.Fields[idx].FieldName );
+    fDataset.Fields[idx].OnChange := UpdateFields;
   end;
+end;
+
+procedure TEndpoint.setDataset(const Value: TFDDataset);
+var
+  idx: int32;
+begin
+  fDataset := Value;
+  UpdateFields(nil);
 end;
 
 procedure TEndpoint.setFields(const Value: TRestFields);

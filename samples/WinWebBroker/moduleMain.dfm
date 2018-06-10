@@ -90,19 +90,19 @@ object WebModule1: TWebModule1
       PathInfo = '/RESTAPI1'
     end
     item
-      Default = True
       Name = 'WebActionItem23'
       PathInfo = '/'
+    end
+    item
+      Default = True
+      Name = 'WebActionItem24'
+      PathInfo = '/RESTAPI1'
     end>
   Height = 230
   Width = 415
   object FDMemTable1: TFDMemTable
-    FieldDefs = <
-      item
-        Name = 'strUsername'
-        DataType = ftString
-        Size = 20
-      end>
+    Active = True
+    FieldDefs = <>
     IndexDefs = <>
     FetchOptions.AssignedValues = [evMode]
     FetchOptions.Mode = fmAll
