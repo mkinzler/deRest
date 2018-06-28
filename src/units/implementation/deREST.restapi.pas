@@ -82,7 +82,7 @@ begin
   aRESTFilters := TRestFilters.Create;
   FilterParser := TRESTFilterParser.Create;
   try
-    if not TRESTFilterParser.Parse( FilterURL, aRestFilters ) then begin
+    if not FilterParser.Parse( FilterURL, aRestFilters ) then begin
       exit;
     end;
   finally
@@ -99,7 +99,7 @@ var
   Processed: boolean;
 begin
   //- Get the URL filters.
-  Filters := ParseFilters( Dispatcher.Request.URL );
+  Filters := ParseFilters( Dispatcher.Request.Query );
   if not assigned(Filters) then begin
     Dispatcher.Response.StatusCode := 500;
     Dispatcher.Response.Content := 'Invalid filters';

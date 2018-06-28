@@ -6,9 +6,6 @@
         <Projects Include="src\pkg_deREST.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="src\pkg_deREST_Design.dproj">
-            <Dependencies/>
-        </Projects>
         <Projects Include="samples\WinWebBroker\WinWebBroker.dproj">
             <Dependencies/>
         </Projects>
@@ -29,15 +26,6 @@
     <Target Name="pkg_deREST:Make">
         <MSBuild Projects="src\pkg_deREST.dproj" Targets="Make"/>
     </Target>
-    <Target Name="pkg_deREST_Design">
-        <MSBuild Projects="src\pkg_deREST_Design.dproj"/>
-    </Target>
-    <Target Name="pkg_deREST_Design:Clean">
-        <MSBuild Projects="src\pkg_deREST_Design.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="pkg_deREST_Design:Make">
-        <MSBuild Projects="src\pkg_deREST_Design.dproj" Targets="Make"/>
-    </Target>
     <Target Name="WinWebBroker">
         <MSBuild Projects="samples\WinWebBroker\WinWebBroker.dproj"/>
     </Target>
@@ -48,13 +36,13 @@
         <MSBuild Projects="samples\WinWebBroker\WinWebBroker.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="pkg_deREST;pkg_deREST_Design;WinWebBroker"/>
+        <CallTarget Targets="pkg_deREST;WinWebBroker"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="pkg_deREST:Clean;pkg_deREST_Design:Clean;WinWebBroker:Clean"/>
+        <CallTarget Targets="pkg_deREST:Clean;WinWebBroker:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="pkg_deREST:Make;pkg_deREST_Design:Make;WinWebBroker:Make"/>
+        <CallTarget Targets="pkg_deREST:Make;WinWebBroker:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

@@ -15,7 +15,7 @@ type
     function Poke: char;
     function EOF: boolean;
   public
-    class function Parse( FilterString: string; Filters: IRESTFilters ): boolean;
+    function Parse( FilterString: string; Filters: IRESTFilters ): boolean;
   end;
 
 implementation
@@ -24,10 +24,10 @@ implementation
 
 function TRESTFilterParser.EOF: boolean;
 begin
-  Result := fCursor = fEOFPos;
+  Result := fCursor >= fEOFPos;
 end;
 
-class function TRESTFilterParser.Parse(FilterString: string; Filters: IRESTFilters): boolean;
+function TRESTFilterParser.Parse(FilterString: string; Filters: IRESTFilters): boolean;
 begin
   Result := False;
   //- Initialize string cursor and EOFPos
@@ -46,7 +46,8 @@ begin
   end;
   // Attempt to parse a filter.
   repeat
-    ParseFilter( Filters );
+//    ParseFilter( Filters );
+    inc(fCursor);
   until EOF;
 end;
 
