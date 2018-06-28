@@ -2,7 +2,7 @@ unit deREST.restresponse;
 
 interface
 uses
-  deREST.restcollections,
+  deREST.restcollection,
   deREST.restobject;
 
 type

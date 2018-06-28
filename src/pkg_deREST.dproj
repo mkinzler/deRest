@@ -154,11 +154,14 @@
         <DCCReference Include="units\implementation\deREST.restapi.pas"/>
         <DCCReference Include="units\implementation\deREST.datasets.pas"/>
         <DCCReference Include="units\interface\deREST.restobject.pas"/>
-        <DCCReference Include="units\interface\deREST.restcollections.pas"/>
+        <DCCReference Include="units\interface\deREST.restcollection.pas"/>
         <DCCReference Include="units\interface\deREST.restresponse.pas"/>
-        <DCCReference Include="units\interface\deREST.restfilters.pas"/>
-        <DCCReference Include="units\implementation\deREST.RESTFilters.standard.pas"/>
         <DCCReference Include="units\implementation\deREST.filterparser.pas"/>
+        <DCCReference Include="units\interface\deREST.restfilter.pas"/>
+        <DCCReference Include="units\implementation\deREST.restfilter.standard.pas"/>
+        <DCCReference Include="units\implementation\deREST.restresponse.standard.pas"/>
+        <DCCReference Include="units\implementation\deREST.restcollection.standard.pas"/>
+        <DCCReference Include="units\implementation\deREST.restobject.standard.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

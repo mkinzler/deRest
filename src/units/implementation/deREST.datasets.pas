@@ -93,7 +93,7 @@ end;
 
 function TRESTDatasets.GetItem(Index: Integer): TRESTDataset;
 begin
-  Result := (self.Items[index] as TRESTDataset);
+  Result := ((inherited Items[index]) as TRESTDataset);
 end;
 
 function TRESTDatasets.GetOwner: TPersistent;

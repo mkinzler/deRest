@@ -1,4 +1,4 @@
-unit deREST.restcollections;
+unit deREST.restcollection;
 
 interface
 uses

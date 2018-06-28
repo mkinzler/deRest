@@ -5,7 +5,7 @@ uses
   System.SysUtils,
   System.Classes,
   Web.HTTPApp,
-  deREST.restfilters,
+  deREST.restfilter,
   deREST.restobject,
   deREST.datasets,
   deREST.restresponse;
@@ -25,7 +25,7 @@ type
   ///    proceed with the event handler for AFTER the request. Otherwise the
   ///    response will be processed and sent.
   ///  </summary>
-  TRESTFilteredEvent = procedure( RequestFilters: IRESTFilters; Response: IRESTResponse; var Processed: boolean ) of object;
+  TRESTFilteredEvent = procedure( RequestFilters: IRESTFilterGroup; Response: IRESTResponse; var Processed: boolean ) of object;
 
   ///  <summary>
   ///    Represents a REST API (collection of endpoitns).
@@ -46,7 +46,7 @@ type
     procedure ProcessGetRequest(Dispatcher: IWebDispatcherAccess);
     procedure ProcessPostRequest(Dispatcher: IWebDispatcherAccess);
     procedure ProcessPutRequest(Dispatcher: IWebDispatcherAccess);
-    function ParseFilters(FilterURL: string): IRESTFilters;
+    function ParseFilters(FilterURL: string): IRESTFilterGroup;
   protected
     procedure SetDatasets(Value: TRESTDatasets);
   protected
@@ -71,30 +71,31 @@ type
 implementation
 uses
   deREST.filterparser,
-  deREST.restfilters.standard;
+  deREST.restfilter.standard,
+  deREST.restresponse.standard;
 
-function TRESTAPI.ParseFilters( FilterURL: string ): IRESTFilters;
+function TRESTAPI.ParseFilters( FilterURL: string ): IRESTFilterGroup;
 var
-  aRestFilters: IRestFilters;
+  aRestFilterGroup: IRestFilterGroup;
   FilterParser: TRESTFilterParser;
 begin
   Result := nil;
-  aRESTFilters := TRestFilters.Create;
+  aRESTFilterGroup := TRestFilterGroup.Create;
   FilterParser := TRESTFilterParser.Create;
   try
-    if not FilterParser.Parse( FilterURL, aRestFilters ) then begin
+    if not FilterParser.Parse( FilterURL, aRestFilterGroup ) then begin
       exit;
     end;
   finally
     FilterParser.DisposeOf;
   end;
-  Result := aRESTFilters;
+  Result := aRESTFilterGroup;
 end;
 
 procedure TRESTAPI.ProcessGetRequest( Dispatcher: IWebDispatcherAccess );
 var
   Str: string;
-  Filters: IRESTFilters;
+  Filters: IRESTFilterGroup;
   Response: IRESTResponse;
   Processed: boolean;
 begin
@@ -107,36 +108,46 @@ begin
     exit;
   end;
   Processed := False;
-  //- If before event is assigned, call it.
-  if assigned(fOnBeforeRESTRead) then begin
-    fOnBeforeRESTRead( Filters, Response, Processed );
-  end;
-  //- if after event is assigned, call it.
-  if assigned(fOnAfterRESTRead) then begin
-    fOnAfterRESTRead( Response );
-  end;
-  //- Process result.
-  Dispatcher.Response.StatusCode := uint32(Response.ResponseCode);
-  Dispatcher.Response.ContentEncoding := 'plain/text';
-  if Dispatcher.Response.StatusCode=200 then begin
-    if not Response.ResponseCollection.Serialize(Str) then begin
-      Dispatcher.Response.StatusCode := 500;
-      Dispatcher.Response.Content := 'Failed to serialize response.';
-      Dispatcher.Response.SendResponse;
-      exit;
+  Response := TRESTResponse.Create;
+  try
+    Dispatcher.Response.StatusCode := 200;
+     Dispatcher.Response.Content := Filters.ToFilterString;
+    Dispatcher.Response.SendResponse;
+    exit;
+
+    //- If before event is assigned, call it.
+    if assigned(fOnBeforeRESTRead) then begin
+      fOnBeforeRESTRead( Filters, Response, Processed );
     end;
-    Dispatcher.Response.Content := Str;
-  end else begin
-    Dispatcher.Response.Content := Response.ResponseMessage;
+    //- if after event is assigned, call it.
+    if assigned(fOnAfterRESTRead) then begin
+      fOnAfterRESTRead( Response );
+    end;
+    //- Process result.
+    Dispatcher.Response.StatusCode := uint32(Response.ResponseCode);
+    Dispatcher.Response.ContentEncoding := 'plain/text';
+    if Dispatcher.Response.StatusCode=200 then begin
+      if not Response.ResponseCollection.Serialize(Str) then begin
+        Dispatcher.Response.StatusCode := 500;
+        Dispatcher.Response.Content := 'Failed to serialize response.';
+        Dispatcher.Response.SendResponse;
+        exit;
+      end;
+      Dispatcher.Response.Content := Str;
+    end else begin
+      Dispatcher.Response.Content := Response.ResponseMessage;
+    end;
+    //- Send the response.
+    Dispatcher.Response.SendResponse;
+  finally
+    Response := nil;
   end;
-  //- Send the response.
-  Dispatcher.Response.SendResponse;
 end;
 
 procedure TRESTAPI.ProcessPostRequest( Dispatcher: IWebDispatcherAccess );
 var
   Str: string;
-  Filters: IRESTFilters;
+  Filters: IRESTFilterGroup;
   Response: IRESTResponse;
   Processed: boolean;
 begin
@@ -179,7 +190,7 @@ end;
 procedure TRESTAPI.ProcessPutRequest( Dispatcher: IWebDispatcherAccess );
 var
   Str: string;
-  Filters: IRESTFilters;
+  Filters: IRESTFilterGroup;
   Response: IRESTResponse;
   Processed: boolean;
 begin
@@ -221,7 +232,7 @@ end;
 procedure TRESTAPI.ProcessDeleteRequest( Dispatcher: IWebDispatcherAccess );
 var
   Str: string;
-  Filters: IRESTFilters;
+  Filters: IRESTFilterGroup;
   Response: IRESTResponse;
   Processed: boolean;
 begin
@@ -306,12 +317,15 @@ procedure TRESTAPI.Notification(AnObject: TComponent; Operation: TOperation);
 var
   idx: Integer;
 begin
-  inherited;
-  if (Operation = TOperation.opRemove) then begin
-    for idx := 0 to pred(fDatasets.Count) do begin
-      if fDatasets.Items[idx].Dataset = AnObject then begin
-        fDatasets.Items[idx].Dataset := nil;
-      end;
+  if (Operation<>TOperation.opRemove) then begin
+    exit;
+  end;
+  if AnObject=nil then begin
+    exit;
+  end;
+  for idx := 0 to pred(fDatasets.Count) do begin
+    if (fDatasets.Items[idx].Dataset) = AnObject then begin
+      fDatasets.Items[idx].Dataset := nil;
     end;
   end;
 end;

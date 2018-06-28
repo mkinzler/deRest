@@ -10,8 +10,8 @@ uses System.SysUtils, System.Classes, Web.HTTPApp, deREST, FireDAC.Stan.Intf,
 
 type
   TWebModule1 = class(TWebModule)
-    RESTAPI1: TRESTAPI;
     FDMemTable1: TFDMemTable;
+    RESTAPI1: TRESTAPI;
     procedure WebModule1DefaultHandlerAction(Sender: TObject;
       Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   private
