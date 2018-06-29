@@ -2,6 +2,7 @@ unit deREST;
 
 interface
 uses
+  Data.DB,
   Web.HTTPApp,
   FireDAC.Comp.Client,
   classes;
@@ -63,6 +64,21 @@ type
       rcError = 500
     );
 
+  ///  <summary>
+  ///    Used internally to ensure correct field type is used when building
+  ///    query filters.
+  ///  </summary>
+  TRESTFieldType = (rftUnknown,rftString,rftInteger,rftFloat);
+
+  ///  <summary>
+  ///    Used internally to ensure correct field type is used when building
+  ///    query filters.
+  ///  </summary>
+  TFieldRecord = record
+    FieldName: string;
+    FieldType: TRESTFieldType;
+  end;
+
   /// <exclude/>
   IRESTFilter = interface; // forward declaration.
 
@@ -101,7 +117,7 @@ type
     ///    Returns the filter, or group of filters as a string.
     ///    The returned string should match the input string.
     ///  </summary>
-    function ToFilterString: string;
+    function ToFilterString( FieldTypes: array of TFieldRecord ): string;
 
     ///  <summary>
     ///    Returns this item cast as an IRESTFilter.
@@ -519,8 +535,6 @@ procedure Register;
 
 implementation
 uses
-  Data.DB,
-  typinfo,
   sysutils,
   deREST.filterparser,
   deREST.restfilter.standard,
@@ -553,6 +567,7 @@ procedure TRESTCollection.ProcessRead( Filters: IRESTFilterGroup; Response: IRES
 var
   idx, idy: int32;
   AnObject: IRESTObject;
+  FieldRecords: array of TFieldRecord;
   qry: TFDQuery;
 begin
   //- Do we have a database assigned?
@@ -589,13 +604,54 @@ begin
       Response.Complete := True;
       exit;
     end;
+    //- Build an array of field types.
+    SetLength(FieldRecords,qry.Fields.Count);
+    if qry.Fields.Count>0 then begin
+      for idy := 0 to pred(qry.Fields.Count) do begin
+        FieldRecords[idx].FieldName := Uppercase(Trim(qry.Fields[idy].FieldName));
+        case qry.Fields[idy].DataType of
+          ftSmallint,
+          ftInteger,
+          ftWord,
+          ftLargeint,
+          ftFMTBcd,
+          ftLongWord,
+          ftShortint,
+          ftByte: begin
+            FieldRecords[idy].FieldType := rftInteger;
+          end;
+          ftFloat,
+          ftCurrency,
+          ftBCD,
+          ftExtended,
+          ftSingle: begin
+            FieldRecords[idy].FieldType := rftFloat;
+          end;
+          else begin
+            FieldRecords[idy].FieldType := rftString;
+          end;
+        end;
+      end;
+    end;
     //- Lets have the filters object assign the parameters of a sql statment
     //- for us.
     qry.Active := False;
-    qry.SQL.Text := 'select * from '+fTableName;
-//    Filters.Apply(qry);
-    qry.SQL.Text := qry.SQL.Text + ';';
-    qry.Active := True;
+    if Filters.Count>0 then begin
+      qry.SQL.Text := 'select * from '+fTableName+' where '+Filters.ToFilterString(FieldRecords);
+    end else begin
+      qry.SQL.Text := 'select * from '+fTableName+';';
+    end;
+    try
+      qry.Active := True;
+    except
+      on E: Exception do begin
+        Response.ResponseCode := THTTPResponseCode.rcError;
+        Response.ResponseMessage := E.Message;
+        Response.Complete := True;
+        exit;
+      end;
+    end;
+    //- Check that the query went active.
     if not qry.Active then begin
       Response.ResponseCode := THTTPResponseCode.rcError;
       Response.ResponseMessage := 'Invalid filters.';

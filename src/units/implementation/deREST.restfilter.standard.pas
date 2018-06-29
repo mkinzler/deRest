@@ -15,7 +15,7 @@ type
     function ASGroup: IRESTFilterGroup;
     function IsFilter: boolean;
     function IsGroup: boolean;
-    function ToFilterString: string;
+    function ToFilterString( FieldTypes: array of TFieldRecord ): string;
   private //- IRESTFilterGroup -//
     function getCount: uint32;
     function getItem( Index: uint32 ): IRESTFilterItem;
@@ -39,7 +39,7 @@ type
     function ASGroup: IRESTFilterGroup;
     function IsFilter: boolean;
     function IsGroup: boolean;
-    function ToFilterString: string;
+    function ToFilterString( FieldTypes: array of TFieldRecord ): string;
   private //- IRESTFilter -//
     function getIdentifier: string;
     procedure setIdentifier( value: string );
@@ -55,6 +55,8 @@ type
     procedure setValueAsBoolean( value: boolean );
     function getValueAsDateTime: TDateTime;
     procedure setValueAsDateTime( value: TDateTime );
+  private
+    function FieldType( FieldTypes: array of TFieldRecord; FieldName: string ): TRESTFieldType;
   end;
 
 
@@ -162,7 +164,25 @@ begin
   fValue := value;
 end;
 
-function TRESTFilter.ToFilterString: string;
+function TRESTFilter.FieldType( FieldTypes: array of TFieldRecord; FieldName: string ): TRESTFieldType;
+var
+  idx: uint32;
+  utFieldName: string;
+begin
+  Result := rftUnknown;
+  if Length(FieldTypes)=0 then begin
+    exit;
+  end;
+  utFieldName := Uppercase(Trim(FieldName));
+  for idx := 0 to pred(Length(FieldTypes)) do begin
+    if FieldTypes[idx].FieldName=utFieldName then begin
+      Result := FieldTypes[idx].FieldType;
+      exit;
+    end;
+  end;
+end;
+
+function TRESTFilter.ToFilterString( FieldTypes: array of TFieldRecord ): string;
 begin
   Result := getIdentifier;
   case getConstraint of
@@ -174,7 +194,15 @@ begin
     csEqual: Result := Result + '=';
     csNotEqual: Result := Result + '<>';
   end;
-  Result := Result + getValueAsString;
+  case FieldType(FieldTypes,getIdentifier) of
+    rftUnknown,
+    rftString: begin
+      Result := Result + ''''+getValueAsString+'''';
+    end;
+    else begin
+      Result := Result + getValueAsString;
+    end;
+  end;
 end;
 
 { TRESTFilterGroup }
@@ -261,7 +289,7 @@ begin
   fGroupOperator := Value;
 end;
 
-function TRESTFilterGroup.ToFilterString: string;
+function TRESTFilterGroup.ToFilterString( FieldTypes: array of TFieldRecord ): string;
 var
   idx: uint32;
 begin
@@ -274,12 +302,12 @@ begin
   end;
   //- Loop the child groups and filters and output them.
   for idx := 0 to pred(getCount) do begin
-    Result := Result + getItem(idx).ToFilterString;
+    Result := Result + getItem(idx).ToFilterString( FieldTypes );
     if idx<pred(getCount) then begin
       case getGroupOperator of
-        opGroup: Result := Result + '&';
-        opAND: Result := Result + '&';
-        opOR: Result := Result + '|';
+        opGroup: Result := Result + ' AND ';
+        opAND: Result := Result + ' AND ';
+        opOR: Result := Result + ' OR ';
       end;
     end;
   end;
