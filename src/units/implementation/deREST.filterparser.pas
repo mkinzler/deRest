@@ -2,7 +2,7 @@ unit deREST.filterparser;
 
 interface
 uses
-  deREST.restfilter;
+  deREST;
 
 type
   TRESTFilterParser = class

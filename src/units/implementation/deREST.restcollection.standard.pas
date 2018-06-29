@@ -3,8 +3,7 @@ unit deREST.restcollection.standard;
 interface
 uses
   system.generics.collections,
-  deREST.restobject,
-  deREST.restcollection;
+  deREST;
 
 type
   TRESTCollection = class( TInterfacedObject, IRESTCollection )

@@ -3,7 +3,7 @@ unit deREST.restobject.standard;
 interface
 uses
   classes,
-  deREST.restobject;
+  deREST;
 
 type
   TRESTObject = class( TInterfacedObject, IRESTObject )

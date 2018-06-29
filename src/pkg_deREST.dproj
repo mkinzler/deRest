@@ -151,13 +151,8 @@
         <DCCReference Include="FireDACCommonDriver.dcp"/>
         <DCCReference Include="FireDACCommon.dcp"/>
         <DCCReference Include="units\deREST.pas"/>
-        <DCCReference Include="units\implementation\deREST.restapi.pas"/>
-        <DCCReference Include="units\implementation\deREST.datasets.pas"/>
-        <DCCReference Include="units\interface\deREST.restobject.pas"/>
-        <DCCReference Include="units\interface\deREST.restcollection.pas"/>
-        <DCCReference Include="units\interface\deREST.restresponse.pas"/>
+        <DCCReference Include="units\deREST.datasets.pas"/>
         <DCCReference Include="units\implementation\deREST.filterparser.pas"/>
-        <DCCReference Include="units\interface\deREST.restfilter.pas"/>
         <DCCReference Include="units\implementation\deREST.restfilter.standard.pas"/>
         <DCCReference Include="units\implementation\deREST.restresponse.standard.pas"/>
         <DCCReference Include="units\implementation\deREST.restcollection.standard.pas"/>

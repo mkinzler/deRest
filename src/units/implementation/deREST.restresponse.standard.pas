@@ -2,8 +2,7 @@ unit deREST.restresponse.standard;
 
 interface
 uses
-  deREST.restcollection,
-  deREST.restresponse;
+  deREST;
 
 type
   TRESTResponse = class( TInterfacedObject, IRESTResponse )

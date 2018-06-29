@@ -37,13 +37,8 @@ requires
 
 contains
   deREST in 'units\deREST.pas',
-  deREST.restapi in 'units\implementation\deREST.restapi.pas',
-  deREST.datasets in 'units\implementation\deREST.datasets.pas',
-  deREST.restobject in 'units\interface\deREST.restobject.pas',
-  deREST.restcollection in 'units\interface\deREST.restcollection.pas',
-  deREST.restresponse in 'units\interface\deREST.restresponse.pas',
+  deREST.datasets in 'units\deREST.datasets.pas',
   deREST.filterparser in 'units\implementation\deREST.filterparser.pas',
-  deREST.restfilter in 'units\interface\deREST.restfilter.pas',
   deREST.restfilter.standard in 'units\implementation\deREST.restfilter.standard.pas',
   deREST.restresponse.standard in 'units\implementation\deREST.restresponse.standard.pas',
   deREST.restcollection.standard in 'units\implementation\deREST.restcollection.standard.pas',

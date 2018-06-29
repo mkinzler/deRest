@@ -3,7 +3,7 @@ unit deREST.restfilter.standard;
 interface
 uses
   system.generics.collections,
-  deREST.restfilter;
+  deREST;
 
 type
   TRESTFilterGroup = class( TInterfacedObject, IRESTFilterGroup, IRESTFilterItem )
