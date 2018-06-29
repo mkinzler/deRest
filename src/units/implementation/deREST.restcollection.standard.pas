@@ -12,7 +12,7 @@ type
   private //- IRESTCollection -//
     function getCount: uint32;
     function getItem( idx: uint32 ): IRESTObject;
-    function addItem( aRestObject: IRESTObject ): uint32;
+    function addItem: IRESTObject;
     procedure RemoveItem( idx: uint32 ); overload;
     procedure RemoveItem( aRestObject: IRESTObject ); overload;
     function Deserialize( JSONString: string ): boolean;
@@ -24,13 +24,18 @@ type
 
 implementation
 uses
+  System.JSON,
   deREST.restobject.standard;
 
 { TRESTCollection }
 
-function TRESTCollection.addItem(aRestObject: IRESTObject): uint32;
+function TRESTCollection.addItem: IRESTObject;
+var
+  NewObject: IRESTObject;
 begin
-  Result := fObjects.Add(aRestObject);
+  NewObject := TRESTObject.Create;
+  fObjects.Add(NewObject);
+  Result := NewObject;
 end;
 
 constructor TRESTCollection.Create;
@@ -40,8 +45,10 @@ begin
 end;
 
 function TRESTCollection.Deserialize(JSONString: string): boolean;
+var
+  a: TJSONArray;
 begin
-
+  a := TJSONObject.ParseJSONValue(JSONString) as TJSONArray;
 end;
 
 destructor TRESTCollection.Destroy;
@@ -72,8 +79,35 @@ begin
 end;
 
 function TRESTCollection.Serialize(var JSONString: string): boolean;
+var
+  idx: uint32;
+  idy: uint32;
+  item: IRESTObject;
 begin
-
+  Result := True;
+  if getCount=0 then begin
+    JSONString := '[]';
+    exit;
+  end;
+  JSONString := '[';
+  for idx := 0 to pred(getCount) do begin
+    JSONString := JSONString + '{';
+    Item := getItem(idx);
+    if item.Count>0 then begin
+      for idy := 0 to pred(item.Count) do begin
+        JSONString := JSONString + '"' + Item.Name[idy] + '": "';
+        JSONString := JSONString + Item.ValueByIndex[idy] +'"';
+        if idy<pred(item.Count) then begin
+          JSONString := JSONString + ',';
+        end;
+      end;
+    end;
+    JSONString := JSONString + '}';
+    if idx<pred(getCount) then begin
+      JSONString := JSONString + ',';
+    end;
+  end;
+  JSONString := JSONString + ']';
 end;
 
 end.

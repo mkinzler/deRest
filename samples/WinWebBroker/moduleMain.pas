@@ -2,16 +2,17 @@ unit moduleMain;
 
 interface
 
-uses System.SysUtils, System.Classes, Web.HTTPApp, deREST, FireDAC.Stan.Intf,
+uses System.SysUtils, System.Classes, Web.HTTPApp, FireDAC.Stan.Intf,
   FireDAC.Stan.Option, FireDAC.Stan.Param, FireDAC.Stan.Error, FireDAC.DatS,
   FireDAC.Phys.Intf, FireDAC.DApt.Intf, FireDAC.Stan.Async, FireDAC.DApt,
-  Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client, deREST.restapi,
-  Web.HTTPProd;
+  Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
+  Web.HTTPProd, deREST, FireDAC.UI.Intf, FireDAC.Stan.Def, FireDAC.Stan.Pool,
+  FireDAC.Phys, FireDAC.Phys.MySQL, FireDAC.Phys.MySQLDef, FireDAC.FMXUI.Wait;
 
 type
   TWebModule1 = class(TWebModule)
-    FDMemTable1: TFDMemTable;
-    RESTAPI1: TRESTAPI;
+    restCategories: TRESTCollection;
+    FDConnection1: TFDConnection;
     procedure WebModule1DefaultHandlerAction(Sender: TObject;
       Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   private

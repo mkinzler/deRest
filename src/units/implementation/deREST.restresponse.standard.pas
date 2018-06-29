@@ -7,10 +7,13 @@ uses
 type
   TRESTResponse = class( TInterfacedObject, IRESTResponse )
   private
+    fComplete: boolean;
     fResponseCode: THTTPResponseCode;
     fResponseMessage: string;
     fResponseCollection: IRESTCollection;
   private //- IRESTResponse -//
+    function getComplete: boolean;
+    procedure setComplete( value: boolean );
     function getResponseCollection: IRestCollection;
     function getResponseCode: THTTPResponseCode;
     procedure setResponseCode( Code: THTTPResponseCode );
@@ -31,12 +34,18 @@ constructor TRESTResponse.Create;
 begin
   inherited Create;
   fResponseCollection := TRestCollection.Create;
+  fComplete := False;
 end;
 
 destructor TRESTResponse.Destroy;
 begin
   fResponseCollection := nil;
   inherited Destroy;
+end;
+
+function TRESTResponse.getComplete: boolean;
+begin
+  Result := fComplete;
 end;
 
 function TRESTResponse.getResponseCode: THTTPResponseCode;
@@ -52,6 +61,11 @@ end;
 function TRESTResponse.getResponseMessage: string;
 begin
   Result := fResponseMessage;
+end;
+
+procedure TRESTResponse.setComplete(value: boolean);
+begin
+  fComplete := Value;
 end;
 
 procedure TRESTResponse.setResponseCode(Code: THTTPResponseCode);
