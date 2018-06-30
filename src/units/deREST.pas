@@ -64,21 +64,6 @@ type
       rcError = 500
     );
 
-  ///  <summary>
-  ///    Used internally to ensure correct field type is used when building
-  ///    query filters.
-  ///  </summary>
-  TRESTFieldType = (rftUnknown,rftString,rftInteger,rftFloat);
-
-  ///  <summary>
-  ///    Used internally to ensure correct field type is used when building
-  ///    query filters.
-  ///  </summary>
-  TFieldRecord = record
-    FieldName: string;
-    FieldType: TRESTFieldType;
-  end;
-
   /// <exclude/>
   IRESTFilter = interface; // forward declaration.
 
@@ -114,10 +99,22 @@ type
   IRESTFilterItem = interface
 
     ///  <summary>
+    ///    Searches the filters by their parameter names and returns
+    ///    the the filter.
+    ///  </summary>
+    function ParamValue( ParamName: string ): IRestFilterItem;
+
+    ///  <summary>
     ///    Returns the filter, or group of filters as a string.
     ///    The returned string should match the input string.
     ///  </summary>
-    function ToFilterString( FieldTypes: array of TFieldRecord ): string;
+    function ToWhereClause: string;
+
+    ///  <summary>
+    ///    Assigns a unique parameter name to each filter item so that
+    ///    the parameter values may be applied to a query string.
+    ///  </summary>
+    procedure AssignParameterNames( var counter: uint32 );
 
     ///  <summary>
     ///    Returns this item cast as an IRESTFilter.
@@ -472,6 +469,10 @@ type
     procedure ProcessDelete( Filters: IRESTFilterGroup; Response: IRESTResponse );
     function ParseFilters(FilterURL: string): IRESTFilterGroup;
     procedure SendResponse(Dispatcher: IWebDispatcherAccess; Response: IRESTResponse);
+    function VerifyDatabase(Response: IRESTResponse): boolean;
+    function VerifyTable(Response: IRESTResponse): boolean;
+    function ApplyWhereClause(qry: TFDQuery; Filters: IRESTFilterGroup; Response: IRESTResponse): boolean;
+    function ExecuteQuery(qry: TFDQuery; Response: IRESTResponse): boolean;
   protected
     procedure Notification(AnObject: TComponent; Operation: TOperation); override;
   public
@@ -563,13 +564,9 @@ begin
   Result := aRESTFilterGroup;
 end;
 
-procedure TRESTCollection.ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
-var
-  idx, idy: int32;
-  AnObject: IRESTObject;
-  FieldRecords: array of TFieldRecord;
-  qry: TFDQuery;
+function TRESTCollection.VerifyDatabase( Response: IRESTResponse ): boolean;
 begin
+  Result := False;
   //- Do we have a database assigned?
   if not assigned(fConnection) then begin
     Response.ResponseCode := THTTPResponseCode.rcError;
@@ -585,6 +582,13 @@ begin
     Response.Complete := True;
     exit;
   end;
+  //- We made it, we're good.
+  Result := True;
+end;
+
+function TRESTcollection.VerifyTable( Response: IRESTResponse ): boolean;
+begin
+  Result := False;
   //- Do we have a table name.
   if Trim(fTableName)='' then begin
     Response.ResponseCode := THTTPResponseCode.rcError;
@@ -592,72 +596,101 @@ begin
     Response.Complete := True;
     exit;
   end;
-  //- Can we query the table?
-  qry := TFDQuery.Create(nil);
-  try
-    qry.Connection := fConnection;
-    qry.SQL.Text := 'select * from '+fTableName+' limit 0;';
-    qry.Active := True;
-    if not qry.Active then begin
-      Response.ResponseCode := THTTPResponseCode.rcError;
-      Response.ResponseMessage := 'Database table not found "'+fTableName+'"';
-      Response.Complete := True;
-      exit;
-    end;
-    //- Build an array of field types.
-    SetLength(FieldRecords,qry.Fields.Count);
-    if qry.Fields.Count>0 then begin
-      for idy := 0 to pred(qry.Fields.Count) do begin
-        FieldRecords[idx].FieldName := Uppercase(Trim(qry.Fields[idy].FieldName));
-        case qry.Fields[idy].DataType of
-          ftSmallint,
-          ftInteger,
-          ftWord,
-          ftLargeint,
-          ftFMTBcd,
-          ftLongWord,
-          ftShortint,
-          ftByte: begin
-            FieldRecords[idy].FieldType := rftInteger;
-          end;
-          ftFloat,
-          ftCurrency,
-          ftBCD,
-          ftExtended,
-          ftSingle: begin
-            FieldRecords[idy].FieldType := rftFloat;
-          end;
-          else begin
-            FieldRecords[idy].FieldType := rftString;
-          end;
-        end;
-      end;
-    end;
-    //- Lets have the filters object assign the parameters of a sql statment
-    //- for us.
-    qry.Active := False;
-    if Filters.Count>0 then begin
-      qry.SQL.Text := 'select * from '+fTableName+' where '+Filters.ToFilterString(FieldRecords);
-    end else begin
-      qry.SQL.Text := 'select * from '+fTableName+';';
-    end;
-    try
-      qry.Active := True;
-    except
-      on E: Exception do begin
+  //- We're done
+  Result := True;
+end;
+
+function TRestCollection.ApplyWhereClause( qry: TFDQuery; Filters: IRESTFilterGroup; Response: IRESTResponse ): boolean;
+var
+  Filter: IRESTFilterItem;
+  ParamCounter: uint32;
+  idx: uint32;
+begin
+  Result := False;
+  //- Build the where clause and apply the parameters.
+  if Filters.Count=0 then begin
+    qry.SQL.Text := qry.SQL.Text + ';';
+    Result := True;
+    exit;
+  end;
+  //- Add where clause and assign parameters.
+  ParamCounter := 0;
+  Filters.AssignParameterNames(ParamCounter);
+  qry.SQL.Text := qry.SQL.Text + ' where '+Filters.ToWhereClause+';';
+  if qry.ParamCount>0 then begin
+    for idx := 0 to pred(qry.Params.Count) do begin
+      Filter := Filters.ParamValue(qry.Params[idx].Name);
+      if (not assigned(Filter)) or (not Filter.IsFilter) then begin
         Response.ResponseCode := THTTPResponseCode.rcError;
-        Response.ResponseMessage := E.Message;
+        Response.ResponseMessage := 'Invalid filters (parameter name not found).';
         Response.Complete := True;
         exit;
       end;
+      qry.Params[idx].AsString := Filter.AsFilter.AsString;
     end;
-    //- Check that the query went active.
-    if not qry.Active then begin
+  end;
+  //- We made it.
+  Result := True;
+end;
+
+function TRESTCollection.ExecuteQuery( qry: TFDQuery; Response: IRESTResponse ): boolean;
+begin
+  Result := False;
+  try
+    qry.Active := True;
+  except
+    on E: Exception do begin
       Response.ResponseCode := THTTPResponseCode.rcError;
-      Response.ResponseMessage := 'Invalid filters.';
+      Response.ResponseMessage := E.Message;
       Response.Complete := True;
       exit;
     end;
+  end;
+  //- Check that the query went active.
+  if not qry.Active then begin
+    Response.ResponseCode := THTTPResponseCode.rcError;
+    Response.ResponseMessage := 'Invalid filters.';
+    Response.Complete := True;
+    exit;
+  end;
+  //- We made it.
+  Result := True;
+end;
+
+procedure TRESTCollection.ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
+var
+  idx, idy: int32;
+  ParamCounter: uint32;
+  AnObject: IRESTObject;
+  qry: TFDQuery;
+begin
+
+  //- Do we have a valid database connection?
+  if not VerifyDatabase( Response ) then begin
+    exit;
+  end;
+
+  //- Do we have a valid table name?
+  if not VerifyTable( Response ) then begin
+    exit;
+  end;
+
+  //- Create a query.
+  qry := TFDQuery.Create(nil);
+  try
+    qry.Connection := fConnection;
+
+    //- Set SQL.
+    qry.SQL.Text := 'select * from '+fTableName;
+    if not ApplyWhereClause( qry, Filters, Response ) then begin
+      exit;
+    end;
+
+    //- Execute the query.
+    if not ExecuteQuery(qry,Response) then begin
+      exit;
+    end;
+
     //- Now begin returning the rows of data.
     if qry.RowsAffected>0 then begin
       qry.First;
@@ -671,10 +704,10 @@ begin
         qry.Next;
       end;
     end;
+
   finally
     qry.DisposeOf;
   end;
-
   Response.ResponseCode := THTTPResponseCode.rcOkay;
   Response.Complete := True;
 end;
