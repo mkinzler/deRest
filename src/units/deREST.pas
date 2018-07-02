@@ -568,6 +568,9 @@ type
     function ApplyWhereClause(qry: TFDQuery; Filters: IRESTFilterGroup; Response: IRESTResponse): boolean;
     function ExecuteQuery(qry: TFDQuery; Response: IRESTResponse): boolean;
     function ExecuteSQL(qry: TFDQuery): boolean;
+    function DBObjectToResponse(qry: TFDQuery;
+      Response: IRESTResponse): boolean;
+    function ModifyDBObject(qry: TFDQuery; Request: IRESTArray): boolean;
   protected
     procedure Notification(AnObject: TComponent; Operation: TOperation); override;
   public
@@ -767,10 +770,24 @@ begin
   Result := True;
 end;
 
-procedure TRESTCollection.ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
+function TRESTCollection.DBObjectToResponse( qry: TFDQuery; Response: IRESTResponse ): boolean;
 var
   idx: uint32;
   AnObject: IRESTObject;
+begin
+  Result := False;
+  if qry.Fields.Count=0 then begin
+    exit;
+  end;
+  AnObject := Response.ResponseArray.addItem;
+  for idx := 0 to pred(qry.Fields.Count) do begin
+    AnObject.AddValue(qry.Fields[idx].FieldName,qry.Fields[idx].AsString);
+  end;
+  Result := True;
+end;
+
+procedure TRESTCollection.ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
+var
   qry: TFDQuery;
 begin
   //- Do we have a valid database connection?
@@ -803,16 +820,14 @@ begin
     if qry.RowsAffected>0 then begin
       qry.First;
       while not qry.EOF do begin
-        AnObject := Response.ResponseArray.addItem;
-        if qry.Fields.Count>0 then begin
-          for idx := 0 to pred(qry.Fields.Count) do begin
-            AnObject.AddValue(qry.Fields[idx].FieldName,qry.Fields[idx].AsString);
-          end;
+        if not DBObjectToResponse( qry, Response ) then begin
+          Response.ResponseCode := THTTPResponseCode.rc400_BadRequest;
+          Response.ResponseMessage := 'Unable to serialize object.';
+          exit;
         end;
         qry.Next;
       end;
     end;
-
   finally
     qry.DisposeOf;
   end;
@@ -828,6 +843,7 @@ var
 begin
   //- If there are no items to create, we return successful creation of zero objects..
   if Request.Count=0 then begin
+    Response.ResponseCode := THTTPResponseCode.rc200_OK;
     exit;
   end;
 
@@ -847,6 +863,7 @@ begin
     qry.Connection := fConnection;
 
     //- Loop through each item in the request in order to create it.
+    Response.ResponseCode := THTTPResponseCode.rc201_Created; //- Assume all objects are created, unless they arent (switch to 202_accepted)
     for idx := 0 to pred(Request.Count) do begin
       if Request.Items[idx].Count>0 then begin
         //- Start a new sql string for each object.
@@ -877,7 +894,7 @@ begin
           AnObject := Response.ResponseArray.addItem;
           AnObject.Assign(Request.Items[idx]);
         end else begin
-          Response.ResponseCode := THTTPResponseCode.rc206_PartialContent;
+          Response.ResponseCode := THTTPResponseCode.rc202_Accepted;
         end;
       end;
     end;
@@ -889,13 +906,150 @@ begin
   Response.Complete := True;
 end;
 
-procedure TRESTCollection.ProcessUpdate( Request: IRESTArray; Filters: IRESTFilterGroup; Response: IRESTResponse );
+function TRESTCollection.ModifyDBObject( qry: TFDQuery; Request: IRESTArray ): boolean;
+var
+  idx: uint32;
 begin
-
+  Result := False;
+  //- Only one object may be used to update records.
+  if Request.Count=0 then begin
+    exit;
+  end;
+  if Request.Count>1 then begin
+    exit;
+  end;
+  //- There must be at least one field to modify.
+  if Request.Items[0].Count=0 then begin
+    exit;
+  end;
+  //- Loop through the fields of the object and make the changes.
+  qry.Edit;
+  try
+    for idx := 0 to pred(request.Items[0].Count) do begin
+      if not assigned(qry.FieldByName(request.Items[0].Name[idx])) then begin
+        exit;
+      end;
+      qry.FieldByName(request.Items[0].Name[idx]).AsString := request.Items[0].ValueByIndex[idx];
+    end;
+  finally
+    qry.Post;
+  end;
+  Result := True;
 end;
 
-procedure TRESTCollection.ProcessDelete( Filters: IRESTFilterGroup; Response: IRESTResponse );
+procedure TRESTCollection.ProcessUpdate( Request: IRESTArray; Filters: IRESTFilterGroup; Response: IRESTResponse );
+var
+  qry: TFDQuery;
 begin
+  //- Do we have a valid database connection?
+  if not VerifyDatabase( Response ) then begin
+    exit;
+  end;
+
+  //- Do we have a valid table name?
+  if not VerifyTable( Response ) then begin
+    exit;
+  end;
+
+  //- Create a query.
+  qry := TFDQuery.Create(nil);
+  try
+    qry.Connection := fConnection;
+
+    //- Set SQL.
+    qry.SQL.Text := 'select * from '+fTableName;
+    if not ApplyWhereClause( qry, Filters, Response ) then begin
+      exit;
+    end;
+
+    //- Execute the query.
+    if not ExecuteQuery(qry,Response) then begin
+      exit;
+    end;
+
+    //- Now begin returning the rows of data.
+    if qry.RowsAffected>0 then begin
+      qry.First;
+      while not qry.EOF do begin
+        if not ModifyDBObject( qry, Request ) then begin
+          Response.ResponseCode := THTTPResponseCode.rc400_BadRequest;
+          Response.ResponseMessage := 'Unable to alter record.';
+          exit;
+        end;
+        if not DBObjectToResponse( qry, Response ) then begin
+          Response.ResponseCode := THTTPResponseCode.rc400_BadRequest;
+          Response.ResponseMessage := 'Unable to serialize object.';
+          exit;
+        end;
+        qry.Next;
+      end;
+    end;
+  finally
+    qry.DisposeOf;
+  end;
+  Response.ResponseCode := THTTPResponseCode.rc200_OK;
+  Response.Complete := True;
+end;
+
+
+procedure TRESTCollection.ProcessDelete( Filters: IRESTFilterGroup; Response: IRESTResponse );
+var
+  qry: TFDQuery;
+begin
+  //- Do we have a valid database connection?
+  if not VerifyDatabase( Response ) then begin
+    exit;
+  end;
+
+  //- Do we have a valid table name?
+  if not VerifyTable( Response ) then begin
+    exit;
+  end;
+
+  //- Create a query.
+  qry := TFDQuery.Create(nil);
+  try
+    qry.Connection := fConnection;
+
+    //- Set SQL.
+    qry.SQL.Text := 'select * from '+fTableName;
+    if not ApplyWhereClause( qry, Filters, Response ) then begin
+      exit;
+    end;
+
+    //- Execute the query.
+    if not ExecuteQuery(qry,Response) then begin
+      exit;
+    end;
+
+    //- Now begin returning the rows of data.
+    if qry.RowsAffected>0 then begin
+      qry.First;
+      while not qry.EOF do begin
+        if not DBObjectToResponse( qry, Response ) then begin
+          Response.ResponseCode := THTTPResponseCode.rc400_BadRequest;
+          Response.ResponseMessage := 'Unable to serialize object.';
+          exit;
+        end;
+        qry.Next;
+      end;
+    end;
+
+    //- Now we can delete the objects.
+    qry.SQL.Text := 'delete from '+fTableName;
+    if not ApplyWhereClause(qry, Filters, Response) then begin
+      exit;
+    end;
+    //- Execute the query.
+    if not ExecuteSQL(qry) then begin
+      exit;
+    end;
+
+  finally
+    qry.DisposeOf;
+  end;
+  Response.ResponseCode := THTTPResponseCode.rc200_OK;
+  Response.Complete := True;
 end;
 
 procedure TRESTCollection.SendResponse( Dispatcher: IWebDispatcherAccess; Response: IRESTResponse );

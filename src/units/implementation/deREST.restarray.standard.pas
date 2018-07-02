@@ -26,6 +26,7 @@ unit deREST.restarray.standard;
 interface
 uses
   system.generics.collections,
+  System.JSON,
   deREST;
 
 type
@@ -40,6 +41,7 @@ type
     procedure RemoveItem( aRestObject: IRESTObject ); overload;
     function Deserialize( JSONString: string ): boolean;
     function Serialize( var JSONString: string ): boolean;
+    procedure DeserializeObject(o: TJSONObject );
   public
     constructor Create; reintroduce;
     destructor Destroy; override;
@@ -47,7 +49,6 @@ type
 
 implementation
 uses
-  System.JSON,
   deREST.restobject.standard;
 
 { TRESTCollection }
@@ -67,26 +68,47 @@ begin
   fObjects := TList<IRESTObject>.Create;
 end;
 
-function TRESTArray.Deserialize(JSONString: string): boolean;
+procedure TRESTArray.DeserializeObject( o: TJSONObject );
 var
-  JSONObject: TJSONObject;
+  idx: uint32;
   NewObject: IRESTObject;
-  a: TJSONArray;
-  idx,idy: uint32;
 begin
-  Result := True;
-  a := TJSONObject.ParseJSONValue(JSONString) as TJSONArray;
-  if a.Count=0 then begin
+  if o.Count=0 then begin
     exit;
   end;
-  for idx := 0 to pred(a.Count) do begin
-    NewObject := addItem;
-    JSONObject := a.Items[idx] as TJSONObject;
-    if JSONObject.Count>0 then begin
-      for idy := 0 to pred(JSONObject.Count) do begin
-        NewObject.AddValue( JSONObject.Pairs[idy].JsonString.Value, JSONObject.Pairs[idy].JsonValue.Value );
-      end;
+  NewObject := addItem;
+  for idx := 0 to pred(o.Count) do begin
+    NewObject.AddValue( o.Pairs[idx].JsonString.Value, o.Pairs[idx].JsonValue.Value );
+  end;
+end;
+
+function TRESTArray.Deserialize(JSONString: string): boolean;
+var
+  v: TJSONValue;
+  a: TJSONArray;
+  o: TJSONObject;
+  idx: uint32;
+begin
+  Result := False;
+  v := TJSONObject.ParseJSONValue(JSONString);
+  //- If this is an object, deserialize it.
+  if (v is TJSONObject) then begin
+    o := v as TJSONObject;
+    DeserializeObject(o);
+    Result := True;
+  end else if (v is TJSONArray) then begin
+    a := v as TJSONArray;
+    //- If it's an empty array, we're done.
+    if a.Count=0 then begin
+      Result := True;
+      exit;
     end;
+    //- Loop through array and deserialize each object
+    for idx := 0 to pred(a.Count) do begin
+      o := a.Items[idx] as TJSONObject;
+      DeserializeObject(o);
+    end;
+    Result := True;
   end;
 end;
 
