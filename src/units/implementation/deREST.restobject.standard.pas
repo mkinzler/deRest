@@ -1,3 +1,26 @@
+//------------------------------------------------------------------------------
+// MIT License
+//
+//  Copyright (c) 2018 Craig Chapman
+//
+//  Permission is hereby granted, free of charge, to any person obtaining a copy
+//  of this software and associated documentation files (the "Software"), to deal
+//  in the Software without restriction, including without limitation the rights
+//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the Software is
+//  furnished to do so, subject to the following conditions:
+//
+//  The above copyright notice and this permission notice shall be included in all
+//  copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+//  SOFTWARE.
+//------------------------------------------------------------------------------
 unit deREST.restobject.standard;
 
 interface
@@ -10,6 +33,7 @@ type
   private
     fValues: TStringList;
   private //- IRESTObject -//
+    procedure Assign( SourceObject: IRESTObject );
     function getCount: uint32;
     function getNameByIndex( idx: uint32 ): string;
     function getValueByIndex( idx: uint32 ): string;
@@ -32,6 +56,19 @@ implementation
 procedure TRESTObject.AddValue(aname, avalue: string);
 begin
   fValues.Add(aName+'='+aValue);
+end;
+
+procedure TRESTObject.Assign(SourceObject: IRESTObject);
+var
+  idx: uint32;
+begin
+  fValues.Clear;
+  if SourceObject.Count=0 then begin
+    exit;
+  end;
+  for idx := 0 to pred(SourceObject.Count) do begin
+    AddValue( SourceObject.Name[idx], SourceObject.ValueByIndex[idx] );
+  end;
 end;
 
 constructor TRESTObject.Create;

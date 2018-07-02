@@ -1,3 +1,26 @@
+//------------------------------------------------------------------------------
+// MIT License
+//
+//  Copyright (c) 2018 Craig Chapman
+//
+//  Permission is hereby granted, free of charge, to any person obtaining a copy
+//  of this software and associated documentation files (the "Software"), to deal
+//  in the Software without restriction, including without limitation the rights
+//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the Software is
+//  furnished to do so, subject to the following conditions:
+//
+//  The above copyright notice and this permission notice shall be included in all
+//  copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+//  SOFTWARE.
+//------------------------------------------------------------------------------
 unit deREST.restresponse.standard;
 
 interface
@@ -10,11 +33,11 @@ type
     fComplete: boolean;
     fResponseCode: THTTPResponseCode;
     fResponseMessage: string;
-    fResponseCollection: IRESTCollection;
+    fResponseArray: IRESTArray;
   private //- IRESTResponse -//
     function getComplete: boolean;
     procedure setComplete( value: boolean );
-    function getResponseCollection: IRestCollection;
+    function getResponseArray: IRESTArray;
     function getResponseCode: THTTPResponseCode;
     procedure setResponseCode( Code: THTTPResponseCode );
     function getResponseMessage: string;
@@ -26,20 +49,20 @@ type
 
 implementation
 uses
-  deREST.restcollection.standard;
+  deREST.restarray.standard;
 
 { TRESTResponse }
 
 constructor TRESTResponse.Create;
 begin
   inherited Create;
-  fResponseCollection := TRestCollection.Create;
+  fResponseArray := TRestArray.Create;
   fComplete := False;
 end;
 
 destructor TRESTResponse.Destroy;
 begin
-  fResponseCollection := nil;
+  fResponseArray := nil;
   inherited Destroy;
 end;
 
@@ -53,9 +76,9 @@ begin
   Result := fResponseCode;
 end;
 
-function TRESTResponse.getResponseCollection: IRestCollection;
+function TRESTResponse.getResponseArray: IRestArray;
 begin
-  Result := fResponseCollection;
+  Result := fResponseArray;
 end;
 
 function TRESTResponse.getResponseMessage: string;

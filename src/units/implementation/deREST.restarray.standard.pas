@@ -1,4 +1,27 @@
-unit deREST.restcollection.standard;
+//------------------------------------------------------------------------------
+// MIT License
+//
+//  Copyright (c) 2018 Craig Chapman
+//
+//  Permission is hereby granted, free of charge, to any person obtaining a copy
+//  of this software and associated documentation files (the "Software"), to deal
+//  in the Software without restriction, including without limitation the rights
+//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the Software is
+//  furnished to do so, subject to the following conditions:
+//
+//  The above copyright notice and this permission notice shall be included in all
+//  copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+//  SOFTWARE.
+//------------------------------------------------------------------------------
+unit deREST.restarray.standard;
 
 interface
 uses
@@ -6,7 +29,7 @@ uses
   deREST;
 
 type
-  TRESTCollection = class( TInterfacedObject, IRESTCollection )
+  TRESTArray = class( TInterfacedObject, IRESTArray )
   private
     fObjects: TList<IRESTObject>;
   private //- IRESTCollection -//
@@ -29,7 +52,7 @@ uses
 
 { TRESTCollection }
 
-function TRESTCollection.addItem: IRESTObject;
+function TRESTArray.addItem: IRESTObject;
 var
   NewObject: IRESTObject;
 begin
@@ -38,47 +61,47 @@ begin
   Result := NewObject;
 end;
 
-constructor TRESTCollection.Create;
+constructor TRESTArray.Create;
 begin
   inherited Create;
   fObjects := TList<IRESTObject>.Create;
 end;
 
-function TRESTCollection.Deserialize(JSONString: string): boolean;
+function TRESTArray.Deserialize(JSONString: string): boolean;
 var
   a: TJSONArray;
 begin
   a := TJSONObject.ParseJSONValue(JSONString) as TJSONArray;
 end;
 
-destructor TRESTCollection.Destroy;
+destructor TRESTArray.Destroy;
 begin
   fObjects.Clear;
   fObjects.DisposeOf;
   inherited Destroy;
 end;
 
-function TRESTCollection.getCount: uint32;
+function TRESTArray.getCount: uint32;
 begin
   Result := fObjects.Count;
 end;
 
-function TRESTCollection.getItem(idx: uint32): IRESTObject;
+function TRESTArray.getItem(idx: uint32): IRESTObject;
 begin
   Result := fObjects.Items[idx];
 end;
 
-procedure TRESTCollection.RemoveItem(aRestObject: IRESTObject);
+procedure TRESTArray.RemoveItem(aRestObject: IRESTObject);
 begin
   fObjects.Remove(aRestObject);
 end;
 
-procedure TRESTCollection.RemoveItem(idx: uint32);
+procedure TRESTArray.RemoveItem(idx: uint32);
 begin
   fObjects.Delete(idx);
 end;
 
-function TRESTCollection.Serialize(var JSONString: string): boolean;
+function TRESTArray.Serialize(var JSONString: string): boolean;
 var
   idx: uint32;
   idy: uint32;

@@ -40,7 +40,7 @@ contains
   deREST.filterparser in 'units\implementation\deREST.filterparser.pas',
   deREST.restfilter.standard in 'units\implementation\deREST.restfilter.standard.pas',
   deREST.restresponse.standard in 'units\implementation\deREST.restresponse.standard.pas',
-  deREST.restcollection.standard in 'units\implementation\deREST.restcollection.standard.pas',
+  deREST.restarray.standard in 'units\implementation\deREST.restarray.standard.pas',
   deREST.restobject.standard in 'units\implementation\deREST.restobject.standard.pas';
 
 end.

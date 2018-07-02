@@ -1,3 +1,26 @@
+//------------------------------------------------------------------------------
+// MIT License
+//
+//  Copyright (c) 2018 Craig Chapman
+//
+//  Permission is hereby granted, free of charge, to any person obtaining a copy
+//  of this software and associated documentation files (the "Software"), to deal
+//  in the Software without restriction, including without limitation the rights
+//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the Software is
+//  furnished to do so, subject to the following conditions:
+//
+//  The above copyright notice and this permission notice shall be included in all
+//  copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+//  SOFTWARE.
+//------------------------------------------------------------------------------
 unit deREST;
 
 interface
@@ -10,6 +33,7 @@ uses
 type
   IRESTObject = interface
     ['{01E34F62-FCD3-4333-B224-76AEEE96D59F}']
+    procedure Assign( SourceObject: IRESTObject );
     function getCount: uint32;
     function getNameByIndex( idx: uint32 ): string;
     function getValueByIndex( idx: uint32 ): string;
@@ -42,7 +66,8 @@ type
     csGreaterOrEqual,
     csLessOrEqual,
     csEqual,
-    csNotEqual
+    csNotEqual,
+    csLike
   );
 
   ///  <summary>
@@ -73,21 +98,28 @@ type
   /// <exclude/>
   IRESTResponse = interface; // forward declaration.
 
-  ///  <summary>
-  ///    Callback type for events fired after each CRUD event.
-  ///  </summary>
-  TRESTEvent = procedure( Response: IRESTResponse ) of object;
+  /// <exclude/>
+  IRESTArray = interface; // forward declaration.
 
   ///  <summary>
-  ///    Event called before a filtered request (READ/UPDATE/DELETE) is
-  ///    processed. If the processed parameter is set true during the event
-  ///    handler, then processing of this request is considered complete, and
-  ///    no action will be performed on the dataset.
-  ///    If objects are added to the Response collection, then execution will
-  ///    proceed with the event handler for AFTER the request. Otherwise the
-  ///    response will be processed and sent.
+  ///    Callback type for events fired before and after a CREATE event.
   ///  </summary>
-  TRESTFilteredEvent = procedure( RequestFilters: IRESTFilterGroup; Response: IRESTResponse ) of object;
+  TRESTCreateEvent = procedure( Request: IRESTArray; Response: IRESTResponse ) of object;
+
+  ///  <summary>
+  ///    Event called before and after a READ event
+  ///  </summary>
+  TRESTReadEvent = procedure( RequestFilters: IRESTFilterGroup; Response: IRESTResponse ) of object;
+
+  ///  <summary>
+  ///    Event called before and after an UPDATE event.
+  ///  </summary>
+  TRESTUpdateEvent = procedure( Request: IRESTArray; RequestFilters: IRESTFilterGroup; Response: IRESTResponse ) of object;
+
+  ///  <summary>
+  ///    Event called before and after a DELETE event.
+  ///  </summary>
+  TRESTDeleteEvent = procedure( RequestFilters: IRESTFilterGroup; Response: IRESTResponse ) of object;
 
 
   ///  <summary>
@@ -308,9 +340,9 @@ type
   end;
 
   ///  <summary>
-  ///    Represents a collection of objects (IRESTObject).
+  ///    Represents an array of objects (IRESTObject).
   ///  </summary>
-  IRESTCollection = interface
+  IRESTArray = interface
     ['{AB9B8FEF-6C6E-468C-A4DC-E9303309450F}']
 
     ///  <summary>
@@ -383,10 +415,10 @@ type
     procedure setComplete( value: boolean );
 
     ///  <summary>
-    ///    A collection of REST objects to be returned as JSON within the
+    ///    An array of REST objects to be returned as JSON within the
     ///    body of the HTTP response.
     ///  </summary>
-    function getResponseCollection: IRestCollection;
+    function getResponseArray: IRESTArray;
 
     ///  <summary>
     ///    Returns the response code which will be sent from this REST response
@@ -431,10 +463,10 @@ type
     property ResponseMessage: string read getResponseMessage write setResponseMessage;
 
     ///  <summary>
-    ///    Get the response collection which will be sent in the body of the
+    ///    Get the response array which will be sent in the body of the
     ///    HTTP response as JSON text when the response code is between 200-299.
     ///  </summary>
-    property ResponseCollection: IRESTCollection read getResponseCollection;
+    property ResponseArray: IRESTArray read getResponseArray;
 
     ///
     ///  <summary>
@@ -454,18 +486,18 @@ type
   private
     fConnection: TFDConnection;
     fTableName: string;
-    fOnBeforeRESTDelete: TRESTFilteredEvent;
-    fOnBeforeRESTUpdate: TRESTFilteredEvent;
-    fOnBeforeRESTRead: TRESTFilteredEvent;
-    fOnBeforeRESTCreate: TRESTEvent;
-    fOnAfterRESTDelete: TRESTEvent;
-    fOnAfterRESTUpdate: TRESTEvent;
-    fOnAfterRESTRead: TRESTEvent;
-    fOnAfterRESTCreate: TRESTEvent;
+    fOnBeforeRESTDelete: TRESTDeleteEvent;
+    fOnBeforeRESTUpdate: TRESTUpdateEvent;
+    fOnBeforeRESTRead: TRESTReadEvent;
+    fOnAfterRESTDelete: TRESTDeleteEvent;
+    fOnAfterRESTUpdate: TRESTUpdateEvent;
+    fOnAfterRESTRead: TRESTReadEvent;
+    fOnBeforeRESTCreate: TRESTCreateEvent;
+    fOnAfterRESTCreate: TRESTCreateEvent;
   private
-    procedure ProcessCreate( Response: IRESTResponse );
+    procedure ProcessCreate( Request: IRESTArray; Response: IRESTResponse );
     procedure ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
-    procedure ProcessUpdate( Filters: IRESTFilterGroup; Response: IRESTResponse );
+    procedure ProcessUpdate( Request: IRESTArray; Filters: IRESTFilterGroup; Response: IRESTResponse );
     procedure ProcessDelete( Filters: IRESTFilterGroup; Response: IRESTResponse );
     function ParseFilters(FilterURL: string): IRESTFilterGroup;
     procedure SendResponse(Dispatcher: IWebDispatcherAccess; Response: IRESTResponse);
@@ -492,36 +524,36 @@ type
     ///    Event called before a create operation is performed in order to
     ///    create objects in a REST collection.
     ///  </summary>
-    property OnBeforeRESTCreate: TRESTEvent read fOnBeforeRESTCreate write fOnBeforeRESTCreate;
+    property OnBeforeRESTCreate: TRESTCreateEvent read fOnBeforeRESTCreate write fOnBeforeRESTCreate;
     ///  <summary>
     ///    Event called after a create operation is performed in order to create objects
     ///    in a REST collection.
     ///  </summary>
-    property OnAfterRESTCreate: TRESTEvent read fOnAfterRESTCreate write fOnAfterRESTCreate;
+    property OnAfterRESTCreate: TRESTCreateEvent read fOnAfterRESTCreate write fOnAfterRESTCreate;
     ///  <summary>
     ///    Event called before a read operation to read objects from a REST collection.
     ///  </summary>
-    property OnBeforeRESTRead: TRESTFilteredEvent read fOnBeforeRESTRead write fOnBeforeRESTRead;
+    property OnBeforeRESTRead: TRESTReadEvent read fOnBeforeRESTRead write fOnBeforeRESTRead;
     ///  <summary>
     ///    Event called after a read operation to read objects from a REST collection.
     ///  </summary>
-    property OnAfterRESTRead: TRESTEvent read fOnAfterRESTRead write fOnAfterRESTRead;
+    property OnAfterRESTRead: TRESTReadEvent read fOnAfterRESTRead write fOnAfterRESTRead;
     ///  <summary>
     ///    Event called before an update operation is performed to update objects in a REST collection.
     ///  </summary>
-    property OnBeforeRESTUpdate: TRESTFilteredEvent read fOnBeforeRESTUpdate write fOnBeforeRESTUpdate;
+    property OnBeforeRESTUpdate: TRESTUpdateEvent read fOnBeforeRESTUpdate write fOnBeforeRESTUpdate;
     ///  <summary>
     ///    Event called after an update operation is performed to update objects in a REST collection.
     ///  </summary>
-    property OnAfterRESTUpdate: TRESTEvent read fOnAfterRESTUpdate write fOnAfterRESTUpdate;
+    property OnAfterRESTUpdate: TRESTUpdateEvent read fOnAfterRESTUpdate write fOnAfterRESTUpdate;
     ///  <summary>
     ///    Event called before a delete operation is performed to delete objects from a REST collection.
     ///  </summary>
-    property OnBeforeRESTDelete: TRESTFilteredEvent read fOnBeforeRESTDelete write fOnBeforeRESTDelete;
+    property OnBeforeRESTDelete: TRESTDeleteEvent read fOnBeforeRESTDelete write fOnBeforeRESTDelete;
     ///  <summary>
     ///    Event called after a delete operation is performed to delete objects from a REST collection.
     ///  </summary>
-    property OnAfterRESTDelete: TRESTEvent read fOnAfterRESTDelete write fOnAfterRESTDelete;
+    property OnAfterRESTDelete: TRESTDeleteEvent read fOnAfterRESTDelete write fOnAfterRESTDelete;
     ///  <summary>
     ///    The FireDAC connection which provides access to the table which backs this REST collection.
     ///  </summary>
@@ -537,6 +569,7 @@ procedure Register;
 implementation
 uses
   sysutils,
+  deREST.restarray.standard,
   deREST.filterparser,
   deREST.restfilter.standard,
   deREST.restresponse.standard;
@@ -659,12 +692,10 @@ end;
 
 procedure TRESTCollection.ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
 var
-  idx, idy: int32;
-  ParamCounter: uint32;
+  idx: uint32;
   AnObject: IRESTObject;
   qry: TFDQuery;
 begin
-
   //- Do we have a valid database connection?
   if not VerifyDatabase( Response ) then begin
     exit;
@@ -695,10 +726,10 @@ begin
     if qry.RowsAffected>0 then begin
       qry.First;
       while not qry.EOF do begin
-        AnObject := Response.ResponseCollection.addItem;
+        AnObject := Response.ResponseArray.addItem;
         if qry.Fields.Count>0 then begin
-          for idy := 0 to pred(qry.Fields.Count) do begin
-            AnObject.AddValue(qry.Fields[idy].FieldName,qry.Fields[idy].AsString);
+          for idx := 0 to pred(qry.Fields.Count) do begin
+            AnObject.AddValue(qry.Fields[idx].FieldName,qry.Fields[idx].AsString);
           end;
         end;
         qry.Next;
@@ -712,12 +743,76 @@ begin
   Response.Complete := True;
 end;
 
-procedure TRESTCollection.ProcessCreate( Response: IRESTResponse );
+procedure TRESTCollection.ProcessCreate( Request: IRESTArray; Response: IRESTResponse );
+var
+  idx,idy: uint32;
+  AnObject: IRESTObject;
+  qry: TFDQuery;
 begin
+  //- If there are no items to create, we return successful creation of zero objects..
+  if Request.Count=0 then begin
+    exit;
+  end;
+
+  //- Do we have a valid database connection?
+  if not VerifyDatabase( Response ) then begin
+    exit;
+  end;
+
+  //- Do we have a valid table name?
+  if not VerifyTable( Response ) then begin
+    exit;
+  end;
+
+  //- Create a query.
+  qry := TFDQuery.Create(nil);
+  try
+    qry.Connection := fConnection;
+
+    //- Loop through each item in the request in order to create it.
+    for idx := 0 to pred(Request.Count) do begin
+      if Request.Items[idx].Count>0 then begin
+        //- Start a new sql string for each object.
+        qry.SQL.Text := 'insert into '+fTableName+'(';
+        //- Loop through fields and add their names to the query string.
+        for idy := 0 to pred(Request.Items[idx].Count) do begin
+          qry.SQL.Text := qry.SQL.Text + Request.Items[idx].Name[idy];
+          if idy<pred(Request.Items[idx].Count) then begin
+            qry.SQL.Text := qry.SQL.Text + ', ';
+          end;
+        end;
+        //- Values as parameters.
+        qry.SQL.Text := qry.SQL.Text + ') VALUES (';
+        //- Loop through the fields again and add them as parameters to the query string.
+        for idy := 0 to pred(Request.Items[idx].Count) do begin
+          qry.SQL.Text := qry.SQL.Text + ':' + Request.Items[idx].Name[idy];
+          if idy<pred(Request.Items[idx].Count) then begin
+            qry.SQL.Text := qry.SQL.Text + ', ';
+          end;
+        end;
+        qry.SQL.Text := qry.SQL.Text + ');';
+        //- Loop through one more time, and set the parameter values.
+        for idy := 0 to pred(Request.Items[idx].Count) do begin
+          qry.Params.ParamByName(Request.Items[idx].Name[idy]).AsString := Request.Items[idx].ValueByIndex[idy];
+        end;
+        //- Attempt to execute the query, if successful, add the created object.
+        if ExecuteQuery(qry,Response) then begin
+          AnObject := Response.ResponseArray.addItem;
+          AnObject.Assign(Request.Items[idx]);
+        end;
+      end;
+    end;
+
+  finally
+    qry.DisposeOf;
+  end;
+  Response.ResponseCode := THTTPResponseCode.rcOkay;
+  Response.Complete := True;
 end;
 
-procedure TRESTCollection.ProcessUpdate( Filters: IRESTFilterGroup; Response: IRESTResponse );
+procedure TRESTCollection.ProcessUpdate( Request: IRESTArray; Filters: IRESTFilterGroup; Response: IRESTResponse );
 begin
+
 end;
 
 procedure TRESTCollection.ProcessDelete( Filters: IRESTFilterGroup; Response: IRESTResponse );
@@ -731,7 +826,7 @@ begin
   Str := '';
   Dispatcher.Response.StatusCode := int32(Response.ResponseCode);
   if (Dispatcher.Response.StatusCode>199) and (Dispatcher.Response.StatusCode<300) then begin
-    if Response.ResponseCollection.Serialize(Str) then begin
+    if Response.ResponseArray.Serialize(Str) then begin
       Dispatcher.Response.ContentType := 'application\json';
       Dispatcher.Response.Content := Str;
     end else begin
@@ -751,8 +846,12 @@ var
   Method: TMethodType;
   Filters: IRESTFilterGroup;
   Response: IRESTResponse;
+  Request: IRESTArray;
 begin
   Result := '';
+
+  //- Create request to retrieve request body.
+  Request := TRESTArray.Create;
 
   //- Create a response to handle the results.
   Response := TRESTResponse.Create;
@@ -765,6 +864,12 @@ begin
     mtPatch: begin
       exit;
     end;
+  end;
+
+  //- Deserialize request.
+  case Method of
+    mtPut,
+    mtPost: Request.Deserialize(Dispatcher.Request.Content);
   end;
 
   //- Parse filters.
@@ -791,12 +896,12 @@ begin
     end;
     mtPut: begin
       if assigned(fOnBeforeRESTUpdate) then begin
-        fOnBeforeRESTUpdate(Filters,Response);
+        fOnBeforeRESTUpdate(Request,Filters,Response);
       end;
     end;
     mtPost: begin
       if assigned(fOnBeforeRESTCreate) then begin
-        fOnBeforeRESTCreate(Response);
+        fOnBeforeRESTCreate(Request,Response);
       end;
     end;
     mtDelete: begin
@@ -810,8 +915,8 @@ begin
   if not Response.Complete then begin
     case Method of
       mtGet: ProcessRead( Filters, Response );
-      mtPut: ProcessUpdate( Filters, Response );
-      mtPost: ProcessCreate( Response );
+      mtPut: ProcessUpdate( Request, Filters, Response );
+      mtPost: ProcessCreate( Request, Response );
       mtDelete: ProcessDelete( Filters, Response );
     end;
   end;
@@ -829,22 +934,22 @@ begin
   case Method of
     mtGet: begin
       if assigned(fOnAfterRESTRead) then begin
-        fOnAfterRESTRead(Response);
+        fOnAfterRESTRead(Filters,Response);
       end;
     end;
     mtPut: begin
       if assigned(fOnAfterRESTUpdate) then begin
-        fOnAfterRESTUpdate(Response);
+        fOnAfterRESTUpdate(Request,Filters,Response);
       end;
     end;
     mtPost: begin
       if assigned(fOnAfterRESTCreate) then begin
-        fOnAfterRESTCreate(Response);
+        fOnAfterRESTCreate(Request,Response);
       end;
     end;
     mtDelete: begin
       if assigned(fOnAfterRESTDelete) then begin
-        fOnAfterRESTDelete(Response);
+        fOnAfterRESTDelete(Filters,Response);
       end;
     end;
   end;
@@ -874,8 +979,6 @@ begin
 end;
 
 procedure TRESTCollection.Notification(AnObject: TComponent; Operation: TOperation);
-var
-  idx: Integer;
 begin
   if (Operation<>TOperation.opRemove) then begin
     exit;

@@ -1,3 +1,26 @@
+//------------------------------------------------------------------------------
+// MIT License
+//
+//  Copyright (c) 2018 Craig Chapman
+//
+//  Permission is hereby granted, free of charge, to any person obtaining a copy
+//  of this software and associated documentation files (the "Software"), to deal
+//  in the Software without restriction, including without limitation the rights
+//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the Software is
+//  furnished to do so, subject to the following conditions:
+//
+//  The above copyright notice and this permission notice shall be included in all
+//  copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+//  SOFTWARE.
+//------------------------------------------------------------------------------
 unit deREST.filterparser;
 
 interface
@@ -63,21 +86,46 @@ begin
 end;
 
 function TRESTFilterParser.ParseConstraint( var Constraint: TConstraint ): boolean;
+var
+  ConstraintStr: string;
 begin
   Result := False;
   Constraint := TConstraint.csUnknown;
-  if Peek='>' then begin
-    Constraint := TConstraint.csGreaterThan;
-  end else if peek='<' then begin
-    Constraint := TConstraint.csLessThan;
-  end else if peek='=' then begin
-    Constraint := TConstraint.csEqual;
-  end else if peek='!' then begin
-    Constraint := TConstraint.csNotEqual;
-  end else begin
-    exit; //- No constraint found.
+  if Peek<>'[' then begin
+    exit;
   end;
   poke;
+  ConstraintStr := '';
+  while (not EOF) and (Peek<>']') do begin
+    ConstraintStr := ConstraintStr + Poke;
+  end;
+  if EOF then begin
+    exit;
+  end;
+  Poke; // remove the ]
+  if Peek<>'=' then begin
+    exit;
+  end;
+  Poke; // remove the =
+  //- Determine which constraint this is.
+  ConstraintStr := Uppercase(Trim(ConstraintStr));
+  if ConstraintStr='=' then begin
+    Constraint := TConstraint.csEqual;
+  end else if ConstraintStr='<>' then begin
+    Constraint := TConstraint.csNotEqual;
+  end else if ConstraintStr='<=' then begin
+    Constraint := TConstraint.csLessOrEqual;
+  end else if ConstraintStr='<' then begin
+    Constraint := TConstraint.csLessThan;
+  end else if ConstraintStr='>=' then begin
+    Constraint := TConstraint.csGreaterOrEqual;
+  end else if ConstraintStr='>' then begin
+    Constraint := TConstraint.csGreaterThan;
+  end else if ConstraintStr='LIKE' then begin
+    Constraint := TConstraint.csLike;
+  end else begin
+    exit;
+  end;
   Result := True;
 end;
 
@@ -307,7 +355,6 @@ end;
 
 function TRESTFilterParser.Parse(FilterString: string; Filters: IRESTFilterGroup): boolean;
 begin
-  Result := False;
   //- Initialize string cursor and EOFPos
   fFilterString := URLDecode(FilterString);
   {$ifdef nextgen}
