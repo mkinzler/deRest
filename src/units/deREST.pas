@@ -85,9 +85,70 @@ type
   ///  </summary>
   THTTPResponseCode =
     (
-                 rcOkay = 200,
-       rcPartialContent = 206,
-                rcError = 500
+
+      rc100_Continue = 100,
+      rc101_witchingProtocols = 101,
+      rc102_Processing = 102,
+      rc103_EarlyHints = 103,
+      rc200_OK = 200,
+      rc201_Created = 201,
+      rc202_Accepted = 202,
+      rc203_NonAuthInfo = 203,
+      rc204_NoContent = 204,
+      rc205_ResetContent = 205,
+      rc206_PartialContent = 206,
+      rc207_MultiStatus = 207,
+      rc208_AlreadyReported = 208,
+      rc226_IMUsed = 226,
+      rc300_MultipleChoices = 300,
+      rc301_MovedPermanently = 301,
+      rc302_Found = 302,
+      rc303_SeeOther = 303,
+      rc304_NotModified = 304,
+      rc305_UseProxy = 305,
+      rc306_SwitchProxy = 306,
+      rc307_TemporaryRedirect = 307,
+      rc308_PermanentRedirect = 308,
+      rc400_BadRequest = 400,
+      rc401_Unauthorized = 401,
+      rc402_PaymentRequired = 402,
+      rc403_Forbidden = 403,
+      rc404_NotFound = 404,
+      rc405_MethodNotAllowed = 405,
+      rc406_NotAcceptable = 406,
+      rc407_ProxyAuthRequired = 407,
+      rc408_RequestTimeout = 408,
+      rc409_Conflict = 409,
+      rc410_Gone = 410,
+      rc411_LengthRequired = 411,
+      rc412_PreconditionFailed = 412,
+      rc413_PayloadTooLarge = 413,
+      rc414_URITooLong = 414,
+      rc415_UnsupportedMediaType = 415,
+      rc416_RangeNotSatisfiable = 416,
+      rc417_ExpectationFailed = 417,
+      rc418_Teapot = 418,
+      rc421_MisdirectedRequest = 421,
+      rc422_UnprocessableEntity = 422,
+      rc423_Locked = 423,
+      rc424_FailedDependency = 424,
+      rc426_UpgradeRequired = 426,
+      rc428_PreconditionRequired = 428,
+      rc429_TooManyRequests = 429,
+      rc431_RequestHeaderFieldsTooLarge = 431,
+      rc451_UnavailableForLegalReasons  = 451,
+      rc500_InternalServerError = 500,
+      rc501_NotImplemented = 501,
+      rc502_BadGateway = 502,
+      rc503_ServiceUnavailable = 503,
+      rc504_GatewayTimeout = 504,
+      rc505_HTTPVersionNotSupported = 505,
+      rc506_VariantAlsoNegotiates = 506,
+      rc507_InsufficientStorage = 507,
+      rc508_LoopDetected = 508,
+      rc510_NotExtended = 510,
+      rc511_NetworkAuthRequired = 511
+
     );
 
   /// <exclude/>
@@ -604,7 +665,7 @@ begin
   Result := False;
   //- Do we have a database assigned?
   if not assigned(fConnection) then begin
-    Response.ResponseCode := THTTPResponseCode.rcError;
+    Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
     Response.ResponseMessage := 'Connection to database failed.';
     Response.Complete := True;
     exit;
@@ -612,7 +673,7 @@ begin
   //- Can we connect to the database?
   fConnection.Connected := True;
   if not fConnection.Connected then begin
-    Response.ResponseCode := THTTPResponseCode.rcError;
+    Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
     Response.ResponseMessage := 'Connection to database failed.';
     Response.Complete := True;
     exit;
@@ -626,7 +687,7 @@ begin
   Result := False;
   //- Do we have a table name.
   if Trim(fTableName)='' then begin
-    Response.ResponseCode := THTTPResponseCode.rcError;
+    Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
     Response.ResponseMessage := 'Database table not set.';
     Response.Complete := True;
     exit;
@@ -656,7 +717,7 @@ begin
     for idx := 0 to pred(qry.Params.Count) do begin
       Filter := Filters.ParamValue(qry.Params[idx].Name);
       if (not assigned(Filter)) or (not Filter.IsFilter) then begin
-        Response.ResponseCode := THTTPResponseCode.rcError;
+        Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
         Response.ResponseMessage := 'Invalid filters (parameter name not found).';
         Response.Complete := True;
         exit;
@@ -675,7 +736,7 @@ begin
     qry.Active := True;
   except
     on E: Exception do begin
-      Response.ResponseCode := THTTPResponseCode.rcError;
+      Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
       Response.ResponseMessage := E.Message;
       Response.Complete := True;
       exit;
@@ -683,7 +744,7 @@ begin
   end;
   //- Check that the query went active.
   if not qry.Active then begin
-    Response.ResponseCode := THTTPResponseCode.rcError;
+    Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
     Response.ResponseMessage := 'Invalid filters.';
     Response.Complete := True;
     exit;
@@ -755,7 +816,7 @@ begin
   finally
     qry.DisposeOf;
   end;
-  Response.ResponseCode := THTTPResponseCode.rcOkay;
+  Response.ResponseCode := THTTPResponseCode.rc200_OK;
   Response.Complete := True;
 end;
 
@@ -816,7 +877,7 @@ begin
           AnObject := Response.ResponseArray.addItem;
           AnObject.Assign(Request.Items[idx]);
         end else begin
-          Response.ResponseCode := THTTPResponseCode.rcPartialContent;
+          Response.ResponseCode := THTTPResponseCode.rc206_PartialContent;
         end;
       end;
     end;
@@ -824,7 +885,7 @@ begin
   finally
     qry.DisposeOf;
   end;
-  Response.ResponseCode := THTTPResponseCode.rcOkay;
+  Response.ResponseCode := THTTPResponseCode.rc200_OK;
   Response.Complete := True;
 end;
 
@@ -897,7 +958,7 @@ begin
     mtDelete: begin
       Filters := ParseFilters( Dispatcher.Request.Query );
       if not assigned(Filters) then begin
-        Response.ResponseCode := THTTPResponseCode.rcError;
+        Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
         Response.ResponseMessage := 'Invalid Filters';
         SendResponse( Dispatcher, Response );
         exit;
@@ -942,7 +1003,7 @@ begin
   //- If we've not processed by this point, there's a problem, send the response
   //- and bail out.
   if not Response.Complete then begin
-    Response.ResponseCode := THTTPResponseCode.rcError;
+    Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
     Response.ResponseMessage := 'Request not processed.';
     SendResponse( Dispatcher, Response );
     exit;
