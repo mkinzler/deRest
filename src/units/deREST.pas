@@ -85,8 +85,9 @@ type
   ///  </summary>
   THTTPResponseCode =
     (
-       rcOkay = 200,
-      rcError = 500
+                 rcOkay = 200,
+       rcPartialContent = 206,
+                rcError = 500
     );
 
   /// <exclude/>
@@ -814,6 +815,8 @@ begin
         if ExecuteSQL(qry) then begin
           AnObject := Response.ResponseArray.addItem;
           AnObject.Assign(Request.Items[idx]);
+        end else begin
+          Response.ResponseCode := THTTPResponseCode.rcPartialContent;
         end;
       end;
     end;
