@@ -505,6 +505,7 @@ type
     function VerifyTable(Response: IRESTResponse): boolean;
     function ApplyWhereClause(qry: TFDQuery; Filters: IRESTFilterGroup; Response: IRESTResponse): boolean;
     function ExecuteQuery(qry: TFDQuery; Response: IRESTResponse): boolean;
+    function ExecuteSQL(qry: TFDQuery): boolean;
   protected
     procedure Notification(AnObject: TComponent; Operation: TOperation); override;
   public
@@ -690,6 +691,20 @@ begin
   Result := True;
 end;
 
+function TRESTCollection.ExecuteSQL( qry: TFDQuery ): boolean;
+begin
+  Result := False;
+  try
+    qry.ExecSQL;
+  except
+    on E: Exception do begin
+      exit;
+    end;
+  end;
+  //- We made it.
+  Result := True;
+end;
+
 procedure TRESTCollection.ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
 var
   idx: uint32;
@@ -796,7 +811,7 @@ begin
           qry.Params.ParamByName(Request.Items[idx].Name[idy]).AsString := Request.Items[idx].ValueByIndex[idy];
         end;
         //- Attempt to execute the query, if successful, add the created object.
-        if ExecuteQuery(qry,Response) then begin
+        if ExecuteSQL(qry) then begin
           AnObject := Response.ResponseArray.addItem;
           AnObject.Assign(Request.Items[idx]);
         end;

@@ -69,9 +69,25 @@ end;
 
 function TRESTArray.Deserialize(JSONString: string): boolean;
 var
+  JSONObject: TJSONObject;
+  NewObject: IRESTObject;
   a: TJSONArray;
+  idx,idy: uint32;
 begin
+  Result := True;
   a := TJSONObject.ParseJSONValue(JSONString) as TJSONArray;
+  if a.Count=0 then begin
+    exit;
+  end;
+  for idx := 0 to pred(a.Count) do begin
+    NewObject := addItem;
+    JSONObject := a.Items[idx] as TJSONObject;
+    if JSONObject.Count>0 then begin
+      for idy := 0 to pred(JSONObject.Count) do begin
+        NewObject.AddValue( JSONObject.Pairs[idy].JsonString.Value, JSONObject.Pairs[idy].JsonValue.Value );
+      end;
+    end;
+  end;
 end;
 
 destructor TRESTArray.Destroy;
