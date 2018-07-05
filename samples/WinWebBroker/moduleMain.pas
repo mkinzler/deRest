@@ -7,7 +7,8 @@ uses System.SysUtils, System.Classes, Web.HTTPApp, FireDAC.Stan.Intf,
   FireDAC.Phys.Intf, FireDAC.DApt.Intf, FireDAC.Stan.Async, FireDAC.DApt,
   Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
   Web.HTTPProd, deREST, FireDAC.UI.Intf, FireDAC.Stan.Def, FireDAC.Stan.Pool,
-  FireDAC.Phys, FireDAC.Phys.MySQL, FireDAC.Phys.MySQLDef, FireDAC.FMXUI.Wait;
+  FireDAC.Phys, FireDAC.Phys.MySQL, FireDAC.Phys.MySQLDef, FireDAC.FMXUI.Wait,
+  deREST.api;
 
 type
   TWebModule1 = class(TWebModule)

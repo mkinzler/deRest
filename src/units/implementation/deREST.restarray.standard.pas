@@ -27,7 +27,7 @@ interface
 uses
   system.generics.collections,
   System.JSON,
-  deREST;
+  deREST.types;
 
 type
   TRESTArray = class( TInterfacedObject, IRESTArray )

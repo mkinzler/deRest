@@ -26,7 +26,7 @@ unit deREST.restobject.standard;
 interface
 uses
   classes,
-  deREST;
+  deREST.types;
 
 type
   TRESTObject = class( TInterfacedObject, IRESTObject )

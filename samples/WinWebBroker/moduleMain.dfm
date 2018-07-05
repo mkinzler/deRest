@@ -26,7 +26,7 @@ object WebModule1: TWebModule1
         KeyField = 'str_pkid'
         Endpoint = 'categories'
       end>
-    Left = 192
-    Top = 96
+    Left = 64
+    Top = 104
   end
 end
