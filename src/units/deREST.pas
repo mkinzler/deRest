@@ -563,7 +563,8 @@ type
     procedure setEndpoint(const Value: string);
     procedure setKeyField(const Value: string);
     procedure setTableName(const Value: string);
-    procedure ProcessCreate( Request: IRESTArray; Response: IRESTResponse );
+    procedure ProcessCreate( Request: IRESTArray; Response: IRESTResponse ); overload;
+    procedure ProcessCreate( Request: IRESTArray; Response: IRESTResponse; Item: string ); overload;
     procedure ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
     procedure ProcessUpdate( Request: IRESTArray; Filters: IRESTFilterGroup; Response: IRESTResponse );
     procedure ProcessDelete( Filters: IRESTFilterGroup; Response: IRESTResponse );
@@ -576,15 +577,34 @@ type
     function ExecuteSQL(qry: TFDQuery): boolean;
     function DBObjectToResponse(qry: TFDQuery; Response: IRESTResponse): boolean;
     function ModifyDBObject(qry: TFDQuery; Request: IRESTArray): boolean;
+    function ItemExists(ItemID: string): boolean;
   protected
     procedure ProcessRequest( PathInfo: TPathInfo; Request: TWebRequest; Response: TWebResponse );
   public
     procedure Assign(Source: TPersistent); override;
   published
+
+    ///  <summary>
+    ///    FireDAC connection to the database.
+    ///  </summary>
     property Connection: TFDConnection read fConnection write setConnection;
+
+    ///  <summary>
+    ///    The name of the database table which backs this REST collection.
+    ///  </summary>
     property TableName: string read fTableName write setTableName;
+
+    ///  <summary>
+    ///    The name of the field which identifies objects in the database table
+    ///    which backs this REST collection.
+    ///  </summary>
     property KeyField: string read fKeyField write setKeyField;
+
+    ///  <summary>
+    ///    The public name of this REST collection.
+    ///  </summary>
     property Endpoint: string read fEndpoint write setEndpoint;
+
     ///  <summary>
     ///    Event called before a create operation is performed in order to
     ///    create objects in a REST collection.
@@ -969,6 +989,25 @@ begin
   Response.Complete := True;
 end;
 
+function TRESTCollection.ItemExists( ItemID: string ): boolean;
+var
+  qry: TFDQuery;
+begin
+  Result := False;
+  qry := TFDQuery.Create(nil);
+  try
+    qry.Connection := fConnection;
+    qry.SQL.Text := 'select '+KeyField+' from '+TableName+' where '+KeyField+'=:KeyField;';
+    qry.Params.ParamByName('KeyField').AsString:=ItemID;
+    qry.Active := True;
+    if (qry.Active) and (qry.RowsAffected>0) then begin
+      Result := True;
+    end;
+  finally
+    qry.DisposeOf;
+  end;
+end;
+
 procedure TRESTCollection.ProcessRequest(PathInfo: TPathInfo; Request: TWebRequest; Response: TWebResponse);
 var
   Method: TMethodType;
@@ -998,41 +1037,56 @@ begin
     mtPost: RESTRequest.Deserialize(Request.Content);
   end;
 
+  //- There should be no filters.
+  if PathInfo.Item<>'' then begin
+    if PathInfo.Filters<>'' then begin
+      RESTResponse.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
+      RESTResponse.ResponseMessage := 'Specify item by ID and use of Filters are mutually exclusive.';
+      SendResponse( Response, RESTResponse );
+      exit;
+    end;
+  end;
+
   //- Parse filters.
-  case Method of
-    mtGet,
-    mtPut,
-    mtDelete: begin
-      Filters := ParseFilters( Request.Query );
-      if not assigned(Filters) then begin
-        RESTResponse.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
-        RESTResponse.ResponseMessage := 'Invalid Filters';
-        SendResponse( Response, RESTResponse );
-        exit;
+  if PathInfo.Item='' then begin
+    case Method of
+      mtGet,
+      mtPut,
+      mtDelete: begin
+        Filters := ParseFilters( Request.Query );
+        if not assigned(Filters) then begin
+          RESTResponse.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
+          RESTResponse.ResponseMessage := 'Invalid Filters';
+          SendResponse( Response, RESTResponse );
+          exit;
+        end;
       end;
     end;
+  end else begin
+    Filters := TRestFilterGroup.Create;
+    Filters.AddFilter(KeyField,TConstraint.csEqual,PathInfo.Item);
   end;
 
   //- Run before event.
   case Method of
     mtGet: begin
       if assigned(fOnBeforeRESTRead) then begin
-        fOnBeforeRESTRead(Filters,RESTResponse);
+        fOnBeforeRESTRead(Filters, RESTResponse);
       end;
     end;
     mtPut: begin
       if assigned(fOnBeforeRESTUpdate) then begin
-        fOnBeforeRESTUpdate(RESTRequest,Filters,RESTResponse);
+        fOnBeforeRESTUpdate(RESTRequest, Filters, RESTResponse);
       end;
     end;
     mtPost: begin
       if assigned(fOnBeforeRESTCreate) then begin
-        fOnBeforeRESTCreate(RESTRequest,RESTResponse);
+        fOnBeforeRESTCreate(RESTRequest, RESTResponse);
       end;
     end;
     mtDelete: begin
       if assigned(fOnBeforeRESTDelete) then begin
-        fOnBeforeRESTDelete(Filters,RESTResponse);
+        fOnBeforeRESTDelete(Filters, RESTResponse);
       end;
     end;
   end;
@@ -1041,8 +1095,24 @@ begin
   if not RESTResponse.Complete then begin
     case Method of
       mtGet: ProcessRead( Filters, RESTResponse );
-      mtPut: ProcessUpdate( RESTRequest, Filters, RESTResponse );
-      mtPost: ProcessCreate( RESTRequest, RESTResponse );
+      mtPut: begin
+        if PathInfo.Item<>'' then begin
+          if ItemExists(PathInfo.Item) then begin
+            ProcessUpdate( RESTRequest, Filters, RESTResponse );
+          end else begin
+            ProcessCreate( RESTRequest, RESTResponse, PathInfo.Item );
+          end;
+        end else begin
+          ProcessUpdate( RESTRequest, Filters, RESTResponse );
+        end;
+      end;
+      mtPost: begin
+        if PathInfo.Item<>'' then begin
+          ProcessCreate( RESTRequest, RESTResponse, PathInfo.Item );
+        end else begin
+          ProcessCreate( RESTRequest, RESTResponse );
+        end;
+      end;
       mtDelete: ProcessDelete( Filters, RESTResponse );
     end;
   end;
@@ -1206,7 +1276,7 @@ begin
     qry.Connection := fConnection;
 
     //- Set SQL.
-    qry.SQL.Text := 'select * from '+fTableName;
+    qry.SQL.Text := 'select * from '+TableName;
     if not ApplyWhereClause( qry, Filters, Response ) then begin
       exit;
     end;
@@ -1233,6 +1303,90 @@ begin
         qry.Next;
       end;
     end;
+
+  finally
+    qry.DisposeOf;
+  end;
+  Response.ResponseCode := THTTPResponseCode.rc200_OK;
+  Response.Complete := True;
+end;
+
+procedure TRESTCollection.ProcessCreate(Request: IRESTArray; Response: IRESTResponse; Item: string);
+var
+  idx,idy: uint32;
+  AnObject: IRESTObject;
+  qry: TFDQuery;
+begin
+  //- Do we have a valid database connection?
+  if not VerifyDatabase( Response ) then begin
+    exit;
+  end;
+
+  //- Do we have a valid table name?
+  if not VerifyTable( Response ) then begin
+    exit;
+  end;
+
+  //- If there is more than one item specified, we can't proceed.
+  if Request.Count>1 then begin
+    Response.ResponseCode := THTTPResponseCode.rc400_BadRequest;
+    Response.ResponseMessage := 'Can''t create '+IntToStr(Request.Items[idx].Count)+' objects with a single key.';
+    exit;
+  end;
+
+  //- Create a query.
+  qry := TFDQuery.Create(nil);
+  try
+    qry.Connection := fConnection;
+
+    //- Loop through each item in the request in order to create it.
+    Response.ResponseCode := THTTPResponseCode.rc201_Created; //- Assume all objects are created, unless they arent (switch to 202_accepted)
+
+    if (Request.Count>0) and (Request.Items[idx].Count>0) then begin
+      //- Start a new sql string for each object.
+      qry.SQL.Text := 'insert into '+fTableName+'('+KeyField+',';
+      //- Loop through fields and add their names to the query string.
+      for idy := 0 to pred(Request.Items[idx].Count) do begin
+        qry.SQL.Text := qry.SQL.Text + Request.Items[idx].Name[idy];
+        if idy<pred(Request.Items[idx].Count) then begin
+          qry.SQL.Text := qry.SQL.Text + ', ';
+        end;
+      end;
+      //- Values as parameters.
+      qry.SQL.Text := qry.SQL.Text + ') VALUES (:KeyField,';
+      //- Loop through the fields again and add them as parameters to the query string.
+      for idy := 0 to pred(Request.Items[idx].Count) do begin
+        qry.SQL.Text := qry.SQL.Text + ':' + Request.Items[idx].Name[idy];
+        if idy<pred(Request.Items[idx].Count) then begin
+          qry.SQL.Text := qry.SQL.Text + ', ';
+        end;
+      end;
+      qry.SQL.Text := qry.SQL.Text + ');';
+      //- Loop through one more time, and set the parameter values.
+      qry.Params.ParamByName('KeyField').AsString := Item;
+      for idy := 0 to pred(Request.Items[idx].Count) do begin
+        qry.Params.ParamByName(Request.Items[idx].Name[idy]).AsString := Request.Items[idx].ValueByIndex[idy];
+      end;
+      //- Attempt to execute the query, if successful, add the created object.
+      if ExecuteSQL(qry) then begin
+        AnObject := Response.ResponseArray.addItem;
+        AnObject.Assign(Request.Items[idx]);
+      end else begin
+        Response.ResponseCode := THTTPResponseCode.rc202_Accepted;
+      end;
+    end else begin
+      //- Start a new sql string for each object.
+      qry.SQL.Text := 'insert into '+fTableName+'('+KeyField+') VALUES (:KeyField);';
+      qry.Params.ParamByName('KeyField').AsString := Item;
+      //- Attempt to execute the query, if successful, add the created object.
+      if ExecuteSQL(qry) then begin
+        AnObject := Response.ResponseArray.addItem;
+        AnObject.AddValue(KeyField,Item);
+      end else begin
+        Response.ResponseCode := THTTPResponseCode.rc202_Accepted;
+      end;
+    end;
+
   finally
     qry.DisposeOf;
   end;

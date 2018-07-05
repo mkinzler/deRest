@@ -62,8 +62,10 @@ begin
       ppEndpoint: begin
         if SourceStr[idx]='/' then begin
           Part := ppItem;
+          continue;
         end else if SourceStr[idx]='?' then begin
           Part := ppFilters;
+          continue;
         end else begin
           Result.Endpoint := Result.Endpoint + SourceStr[idx];
         end;
@@ -71,6 +73,7 @@ begin
       ppItem: begin
         if SourceStr[idx]='?' then begin
           Part := ppFilters;
+          continue;
         end else begin
           Result.Item := Result.Item + SourceStr[idx];
         end;
