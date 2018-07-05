@@ -41,6 +41,7 @@ contains
   deREST.restfilter.standard in 'units\implementation\deREST.restfilter.standard.pas',
   deREST.restresponse.standard in 'units\implementation\deREST.restresponse.standard.pas',
   deREST.restarray.standard in 'units\implementation\deREST.restarray.standard.pas',
-  deREST.restobject.standard in 'units\implementation\deREST.restobject.standard.pas';
+  deREST.restobject.standard in 'units\implementation\deREST.restobject.standard.pas',
+  deREST.pathinfo in 'units\implementation\deREST.pathinfo.pas';
 
 end.

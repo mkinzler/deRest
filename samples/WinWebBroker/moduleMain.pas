@@ -11,8 +11,8 @@ uses System.SysUtils, System.Classes, Web.HTTPApp, FireDAC.Stan.Intf,
 
 type
   TWebModule1 = class(TWebModule)
-    restCategories: TRESTCollection;
     FDConnection1: TFDConnection;
+    RESTAPI1: TRESTAPI;
     procedure WebModule1DefaultHandlerAction(Sender: TObject;
       Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   private

@@ -28,6 +28,7 @@ uses
   Data.DB,
   Web.HTTPApp,
   FireDAC.Comp.Client,
+  deREST.pathinfo,
   classes;
 
 type
@@ -541,13 +542,14 @@ type
   end;
 
   ///  <summary>
-  ///    Represents a REST API (collection of endpoints) as a component to be
-  ///    inserted into a web module.
+  ///    Represents a rest collection which is exposed through the TRESTAPI
   ///  </summary>
-  TRESTCollection = class(TCustomContentProducer)
+  TRESTCollection = class(TCollectionItem)
   private
     fConnection: TFDConnection;
     fTableName: string;
+    fKeyField: string;
+    fEndpoint: string;
     fOnBeforeRESTDelete: TRESTDeleteEvent;
     fOnBeforeRESTUpdate: TRESTUpdateEvent;
     fOnBeforeRESTRead: TRESTReadEvent;
@@ -556,36 +558,33 @@ type
     fOnAfterRESTRead: TRESTReadEvent;
     fOnBeforeRESTCreate: TRESTCreateEvent;
     fOnAfterRESTCreate: TRESTCreateEvent;
-  private
+    function GetDisplayName: string; override;
+    procedure setConnection(const Value: TFDConnection);
+    procedure setEndpoint(const Value: string);
+    procedure setKeyField(const Value: string);
+    procedure setTableName(const Value: string);
     procedure ProcessCreate( Request: IRESTArray; Response: IRESTResponse );
     procedure ProcessRead( Filters: IRESTFilterGroup; Response: IRESTResponse );
     procedure ProcessUpdate( Request: IRESTArray; Filters: IRESTFilterGroup; Response: IRESTResponse );
     procedure ProcessDelete( Filters: IRESTFilterGroup; Response: IRESTResponse );
     function ParseFilters(FilterURL: string): IRESTFilterGroup;
-    procedure SendResponse(Dispatcher: IWebDispatcherAccess; Response: IRESTResponse);
+    procedure SendResponse(Response: TWebResponse; RESTResponse: IRESTResponse);
     function VerifyDatabase(Response: IRESTResponse): boolean;
     function VerifyTable(Response: IRESTResponse): boolean;
     function ApplyWhereClause(qry: TFDQuery; Filters: IRESTFilterGroup; Response: IRESTResponse): boolean;
     function ExecuteQuery(qry: TFDQuery; Response: IRESTResponse): boolean;
     function ExecuteSQL(qry: TFDQuery): boolean;
-    function DBObjectToResponse(qry: TFDQuery;
-      Response: IRESTResponse): boolean;
+    function DBObjectToResponse(qry: TFDQuery; Response: IRESTResponse): boolean;
     function ModifyDBObject(qry: TFDQuery; Request: IRESTArray): boolean;
   protected
-    procedure Notification(AnObject: TComponent; Operation: TOperation); override;
+    procedure ProcessRequest( PathInfo: TPathInfo; Request: TWebRequest; Response: TWebResponse );
   public
-    ///  <summary>
-    ///    Called by the TWebModule/TWebAction with a HTTP request in order to
-    ///    obtain the HTTP response. You should not need to call this directly.
-    ///  </summary>
-    function Content: string; override;
-
-    ///  <exclude/>
-    constructor Create( aOwner: TComponent ); override;
-
-    ///  <exclude/>
-    destructor Destroy; override;
+    procedure Assign(Source: TPersistent); override;
   published
+    property Connection: TFDConnection read fConnection write setConnection;
+    property TableName: string read fTableName write setTableName;
+    property KeyField: string read fKeyField write setKeyField;
+    property Endpoint: string read fEndpoint write setEndpoint;
     ///  <summary>
     ///    Event called before a create operation is performed in order to
     ///    create objects in a REST collection.
@@ -620,14 +619,44 @@ type
     ///    Event called after a delete operation is performed to delete objects from a REST collection.
     ///  </summary>
     property OnAfterRESTDelete: TRESTDeleteEvent read fOnAfterRESTDelete write fOnAfterRESTDelete;
+  end;
+
+  ///  <summary>
+  ///    A collection of TRESTCollection objects (to provide a collection
+  ///    property for TRESTAPI.
+  ///  </summary>
+  TRESTCollections = class( TOwnedCollection )
+  public
+    constructor Create( aOwner: TComponent );
+  private
+    function GetItem(idx: integer): TRESTCollection;
+    procedure setItem(idx: integer; const Value: TRESTCollection);
+  public
+    property Items[idx: integer]: TRESTCollection read GetItem write setItem; default;
+  end;
+
+  ///  <summary>
+  ///    Represents a REST API (collection of endpoints) as a component to be
+  ///    inserted into a web module.
+  ///  </summary>
+  TRESTAPI = class(TComponent)
+  private
+    fCollections: TRESTCollections;
+  private
+    procedure WebActionHandler(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    function getCollections: TRESTCollections;
+    procedure setCollections(const Value: TRESTCollections);
+  protected
+//    procedure Notification(AnObject: TComponent; Operation: TOperation); override;
+  public
+    ///  <exclude/>
+    constructor Create( aOwner: TComponent ); override;
+  published
     ///  <summary>
-    ///    The FireDAC connection which provides access to the table which backs this REST collection.
+    ///    Provides access to the REST collections which are exposed through
+    ///    this API.
     ///  </summary>
-    property Connection: TFDConnection read fConnection write fConnection;
-    ///  <summary>
-    ///    Get or Set the name of the database table which backs this REST collection.
-    ///  </summary>
-    property TableName: string read fTableName write fTableName;
+    property Collections: TRESTCollections read getCollections write setCollections;
   end;
 
 procedure Register;
@@ -642,8 +671,89 @@ uses
 
 procedure Register;
 begin
-  RegisterComponents('deREST', [TRESTCollection]);
+  RegisterComponents('deREST', [TRESTAPI]);
 end;
+
+
+
+constructor TRESTAPI.Create(aOwner: TComponent);
+var
+  Action: TWebActionItem;
+begin
+  inherited Create(aOwner);
+  // Ensure the rest manager component is installed on a web module,
+  // we need access to the actions list.
+  if not (aOwner is TWebModule) then begin
+    raise
+      Exception.Create('TRESTManager component must be placed on a TWebModule.');
+  end;
+  //- Create collections
+  fCollections := TRESTCollections.Create(Self);
+  //- Clear out web actions and add our own default.
+  (aOwner as TWebModule).Actions.Clear;
+  Action := (aOwner as TWebModule).Actions.Add;
+  Action.OnAction := WebActionHandler;
+  Action.Default := True;
+end;
+
+//procedure TRESTAPI.Notification(AnObject: TComponent; Operation: TOperation);
+//var
+//  idx: uint32;
+//begin
+//  if (Operation<>TOperation.opRemove) then begin
+//    exit;
+//  end;
+//  if AnObject=nil then begin
+//    exit;
+//  end;
+//  if fCollections.Count=0 then begin
+//    exit;
+//  end;
+//  for idx := 0 to pred(fCollections.Count) do begin
+//    if TRESTCollection(fCollections.Items[idx]).Connection = anObject then begin
+//      TRESTCollection(fCollections.Items[idx]).Connection := nil;
+//      exit;
+//    end;
+//  end;
+//end;
+
+function TRESTAPI.getCollections: TRESTCollections;
+begin
+  Result := fCollections;
+end;
+
+procedure TRESTAPI.setCollections(const Value: TRESTCollections);
+begin
+  fCollections.Assign(Value);
+end;
+
+procedure TRESTAPI.WebActionHandler(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+var
+  utPath: string;
+  idx: uint32;
+  PathInfo: TPathInfo;
+  Collection: TRESTCollection;
+begin
+  Handled := True;
+  if fCollections.Count>0 then begin
+    //- Find the REST collection to handle the request.
+    PathInfo := PathInfo.ParsePathInfo(Request.PathInfo);
+    utPath := Uppercase(Trim(PathInfo.Endpoint));
+    for idx := 0 to pred(fCollections.Count) do begin
+      Collection := TRESTCollection(fCollections.Items[idx]);
+      if Uppercase(Trim(Collection.Endpoint))=utPath then begin
+        TRESTCollection(fCollections.Items[idx]).ProcessRequest(PathInfo,Request,Response);
+        exit;
+      end;
+    end;
+  end;
+  //- If we get here, something went wrong, let the end user know.
+  Response.Content := 'Endpoint not found.';
+  Response.StatusCode := 500;
+  Response.SendResponse;
+end;
+
+{ TRESTCollection }
 
 function TRESTCollection.ParseFilters( FilterURL: string ): IRESTFilterGroup;
 var
@@ -685,7 +795,7 @@ begin
   Result := True;
 end;
 
-function TRESTcollection.VerifyTable( Response: IRESTResponse ): boolean;
+function TRESTCollection.VerifyTable( Response: IRESTResponse ): boolean;
 begin
   Result := False;
   //- Do we have a table name.
@@ -699,7 +809,7 @@ begin
   Result := True;
 end;
 
-function TRestCollection.ApplyWhereClause( qry: TFDQuery; Filters: IRESTFilterGroup; Response: IRESTResponse ): boolean;
+function TRESTCollection.ApplyWhereClause( qry: TFDQuery; Filters: IRESTFilterGroup; Response: IRESTResponse ): boolean;
 var
   Filter: IRESTFilterItem;
   ParamCounter: uint32;
@@ -770,6 +880,30 @@ begin
   Result := True;
 end;
 
+function TRESTCollection.GetDisplayName: string;
+begin
+  Result := fEndpoint;
+end;
+
+procedure TRESTCollection.Assign(Source: TPersistent);
+var
+  src: TRESTCollection;
+begin
+  Src := TRESTCollection(Source);
+  Endpoint := src.Endpoint;
+  TableName := src.TableName;
+  KeyField := src.KeyField;
+  Connection := src.Connection;
+  OnBeforeRESTCreate := src.OnBeforeRESTCreate;
+  OnAfterRESTCreate := src.OnAfterRESTCreate;
+  OnBeforeRESTRead := src.OnBeforeRESTRead;
+  OnAfterRESTRead := src.OnAfterRESTRead;
+  OnBeforeRESTUpdate := src.OnBeforeRESTUpdate;
+  OnAfterRESTUpdate := src.OnAfterRESTUpdate;
+  OnBeforeRESTDelete := src.OnBeforeRESTDelete;
+  OnAfterRESTDelete := src.OnAfterRESTDelete;
+end;
+
 function TRESTCollection.DBObjectToResponse( qry: TFDQuery; Response: IRESTResponse ): boolean;
 var
   idx: uint32;
@@ -833,6 +967,121 @@ begin
   end;
   Response.ResponseCode := THTTPResponseCode.rc200_OK;
   Response.Complete := True;
+end;
+
+procedure TRESTCollection.ProcessRequest(PathInfo: TPathInfo; Request: TWebRequest; Response: TWebResponse);
+var
+  Method: TMethodType;
+  Filters: IRESTFilterGroup;
+  RESTResponse: IRESTResponse;
+  RESTRequest: IRESTArray;
+begin
+  //- Create request to retrieve request body.
+  RESTRequest := TRESTArray.Create;
+
+  //- Create a response to handle the results.
+  RESTResponse := TRESTResponse.Create;
+
+  //- Determine the HTTP method.
+  Method := Request.MethodType;
+  case Method of
+    mtAny,
+    mtHead,
+    mtPatch: begin
+      exit;
+    end;
+  end;
+
+  //- Deserialize request.
+  case Method of
+    mtPut,
+    mtPost: RESTRequest.Deserialize(Request.Content);
+  end;
+
+  //- Parse filters.
+  case Method of
+    mtGet,
+    mtPut,
+    mtDelete: begin
+      Filters := ParseFilters( Request.Query );
+      if not assigned(Filters) then begin
+        RESTResponse.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
+        RESTResponse.ResponseMessage := 'Invalid Filters';
+        SendResponse( Response, RESTResponse );
+        exit;
+      end;
+    end;
+  end;
+
+  //- Run before event.
+  case Method of
+    mtGet: begin
+      if assigned(fOnBeforeRESTRead) then begin
+        fOnBeforeRESTRead(Filters,RESTResponse);
+      end;
+    end;
+    mtPut: begin
+      if assigned(fOnBeforeRESTUpdate) then begin
+        fOnBeforeRESTUpdate(RESTRequest,Filters,RESTResponse);
+      end;
+    end;
+    mtPost: begin
+      if assigned(fOnBeforeRESTCreate) then begin
+        fOnBeforeRESTCreate(RESTRequest,RESTResponse);
+      end;
+    end;
+    mtDelete: begin
+      if assigned(fOnBeforeRESTDelete) then begin
+        fOnBeforeRESTDelete(Filters,RESTResponse);
+      end;
+    end;
+  end;
+
+  //- If not processed, process the event.
+  if not RESTResponse.Complete then begin
+    case Method of
+      mtGet: ProcessRead( Filters, RESTResponse );
+      mtPut: ProcessUpdate( RESTRequest, Filters, RESTResponse );
+      mtPost: ProcessCreate( RESTRequest, RESTResponse );
+      mtDelete: ProcessDelete( Filters, RESTResponse );
+    end;
+  end;
+
+  //- If we've not processed by this point, there's a problem, send the response
+  //- and bail out.
+  if not RESTResponse.Complete then begin
+    RESTResponse.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
+    RESTResponse.ResponseMessage := 'Request not processed.';
+    SendResponse( Response, RESTResponse );
+    exit;
+  end;
+
+  //- If we got here, we need to execute the after event.
+  case Method of
+    mtGet: begin
+      if assigned(fOnAfterRESTRead) then begin
+        fOnAfterRESTRead(Filters,RESTResponse);
+      end;
+    end;
+    mtPut: begin
+      if assigned(fOnAfterRESTUpdate) then begin
+        fOnAfterRESTUpdate(RESTRequest,Filters,RESTResponse);
+      end;
+    end;
+    mtPost: begin
+      if assigned(fOnAfterRESTCreate) then begin
+        fOnAfterRESTCreate(RESTRequest,RESTResponse);
+      end;
+    end;
+    mtDelete: begin
+      if assigned(fOnAfterRESTDelete) then begin
+        fOnAfterRESTDelete(Filters,RESTResponse);
+      end;
+    end;
+  end;
+
+  //- Send the response.
+  SendResponse( Response, RESTResponse );
 end;
 
 procedure TRESTCollection.ProcessCreate( Request: IRESTArray; Response: IRESTResponse );
@@ -1052,176 +1301,63 @@ begin
   Response.Complete := True;
 end;
 
-procedure TRESTCollection.SendResponse( Dispatcher: IWebDispatcherAccess; Response: IRESTResponse );
+procedure TRESTCollection.SendResponse( Response: TWebResponse; RESTResponse: IRESTResponse );
 var
   Str: string;
 begin
   Str := '';
-  Dispatcher.Response.StatusCode := int32(Response.ResponseCode);
-  if (Dispatcher.Response.StatusCode>199) and (Dispatcher.Response.StatusCode<300) then begin
-    if Response.ResponseArray.Serialize(Str) then begin
-      Dispatcher.Response.ContentType := 'application\json';
-      Dispatcher.Response.Content := Str;
+  Response.StatusCode := int32(RESTResponse.ResponseCode);
+  if (Response.StatusCode>199) and (Response.StatusCode<300) then begin
+    if RESTResponse.ResponseArray.Serialize(Str) then begin
+      Response.ContentType := 'application\json';
+      Response.Content := Str;
     end else begin
-      Dispatcher.Response.StatusCode := 500;
-      Dispatcher.Response.ContentType := 'text\plain';
-      Dispatcher.Response.Content := 'Failed to serialize response JSON.';
+      Response.StatusCode := 500;
+      Response.ContentType := 'text\plain';
+      Response.Content := 'Failed to serialize response JSON.';
     end;
   end else begin
-    Dispatcher.Response.ContentType := 'text\plain';
-    Dispatcher.Response.Content := Response.ResponseMessage;
+    Response.ContentType := 'text\plain';
+    Response.Content := RESTResponse.ResponseMessage;
   end;
-  Dispatcher.Response.SendResponse;
+  Response.SendResponse;
 end;
 
-function TRESTCollection.Content: string;
-var
-  Method: TMethodType;
-  Filters: IRESTFilterGroup;
-  Response: IRESTResponse;
-  Request: IRESTArray;
+procedure TRESTCollection.setConnection(const Value: TFDConnection);
 begin
-  Result := '';
-
-  //- Create request to retrieve request body.
-  Request := TRESTArray.Create;
-
-  //- Create a response to handle the results.
-  Response := TRESTResponse.Create;
-
-  //- Determine the HTTP method.
-  Method := Dispatcher.Request.MethodType;
-  case Method of
-    mtAny,
-    mtHead,
-    mtPatch: begin
-      exit;
-    end;
-  end;
-
-  //- Deserialize request.
-  case Method of
-    mtPut,
-    mtPost: Request.Deserialize(Dispatcher.Request.Content);
-  end;
-
-  //- Parse filters.
-  case Method of
-    mtGet,
-    mtPut,
-    mtDelete: begin
-      Filters := ParseFilters( Dispatcher.Request.Query );
-      if not assigned(Filters) then begin
-        Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
-        Response.ResponseMessage := 'Invalid Filters';
-        SendResponse( Dispatcher, Response );
-        exit;
-      end;
-    end;
-  end;
-
-  //- Run before event.
-  case Method of
-    mtGet: begin
-      if assigned(fOnBeforeRESTRead) then begin
-        fOnBeforeRESTRead(Filters,Response);
-      end;
-    end;
-    mtPut: begin
-      if assigned(fOnBeforeRESTUpdate) then begin
-        fOnBeforeRESTUpdate(Request,Filters,Response);
-      end;
-    end;
-    mtPost: begin
-      if assigned(fOnBeforeRESTCreate) then begin
-        fOnBeforeRESTCreate(Request,Response);
-      end;
-    end;
-    mtDelete: begin
-      if assigned(fOnBeforeRESTDelete) then begin
-        fOnBeforeRESTDelete(Filters,Response);
-      end;
-    end;
-  end;
-
-  //- If not processed, process the event.
-  if not Response.Complete then begin
-    case Method of
-      mtGet: ProcessRead( Filters, Response );
-      mtPut: ProcessUpdate( Request, Filters, Response );
-      mtPost: ProcessCreate( Request, Response );
-      mtDelete: ProcessDelete( Filters, Response );
-    end;
-  end;
-
-  //- If we've not processed by this point, there's a problem, send the response
-  //- and bail out.
-  if not Response.Complete then begin
-    Response.ResponseCode := THTTPResponseCode.rc500_InternalServerError;
-    Response.ResponseMessage := 'Request not processed.';
-    SendResponse( Dispatcher, Response );
-    exit;
-  end;
-
-  //- If we got here, we need to execute the after event.
-  case Method of
-    mtGet: begin
-      if assigned(fOnAfterRESTRead) then begin
-        fOnAfterRESTRead(Filters,Response);
-      end;
-    end;
-    mtPut: begin
-      if assigned(fOnAfterRESTUpdate) then begin
-        fOnAfterRESTUpdate(Request,Filters,Response);
-      end;
-    end;
-    mtPost: begin
-      if assigned(fOnAfterRESTCreate) then begin
-        fOnAfterRESTCreate(Request,Response);
-      end;
-    end;
-    mtDelete: begin
-      if assigned(fOnAfterRESTDelete) then begin
-        fOnAfterRESTDelete(Filters,Response);
-      end;
-    end;
-  end;
-
-  //- Send the response.
-  SendResponse( Dispatcher, Response );
+  fConnection := Value;
 end;
 
-constructor TRESTCollection.Create(aOwner: TComponent);
+procedure TRESTCollection.setEndpoint(const Value: string);
 begin
-  inherited Create(aOwner);
-  // Ensure the rest manager component is installed on a web module,
-  // we need access to the actions list.
-  if not (aOwner is TWebModule) then begin
-    raise
-      Exception.Create('TRESTManager component must be placed on a TWebModule.');
-  end;
-  // Initiaize connection to dataset.
-  fConnection := nil;
-  fTableName := '';
+  fEndpoint := Value;
 end;
 
-destructor TRESTCollection.Destroy;
+procedure TRESTCollection.setKeyField(const Value: string);
 begin
-  fConnection := nil;
-  inherited Destroy;
+  fKeyField := Value;
 end;
 
-procedure TRESTCollection.Notification(AnObject: TComponent; Operation: TOperation);
+procedure TRESTCollection.setTableName(const Value: string);
 begin
-  if (Operation<>TOperation.opRemove) then begin
-    exit;
-  end;
-  if AnObject=nil then begin
-    exit;
-  end;
-  if AnObject = fConnection then begin
-    fConnection := nil;
-  end;
+  fTableName := Value;
+end;
+
+{ TRESTCollections }
+
+constructor TRESTCollections.Create(aOwner: TComponent);
+begin
+  inherited Create(aOwner,TRESTCollection);
+end;
+
+function TRESTCollections.GetItem(idx: integer): TRESTCollection;
+begin
+  Result := TRESTCollection(inherited GetItem(idx));
+end;
+
+procedure TRESTCollections.setItem(idx: integer; const Value: TRESTCollection);
+begin
+  inherited SetItem(idx,value);
 end;
 
 end.
