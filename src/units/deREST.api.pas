@@ -774,7 +774,7 @@ end;
 
 procedure TRESTCollection.ProcessCreate(Request: IRESTArray; Response: IRESTResponse; Item: string);
 var
-  idx,idy: uint32;
+  idy: uint32;
   AnObject: IRESTObject;
   qry: TFDQuery;
 begin
@@ -807,31 +807,31 @@ begin
       //- Start a new sql string for each object.
       qry.SQL.Text := 'insert into '+fTableName+'('+KeyField+',';
       //- Loop through fields and add their names to the query string.
-      for idy := 0 to pred(Request.Items[idx].Count) do begin
-        qry.SQL.Text := qry.SQL.Text + Request.Items[idx].Name[idy];
-        if idy<pred(Request.Items[idx].Count) then begin
+      for idy := 0 to pred(Request.Items[0].Count) do begin
+        qry.SQL.Text := qry.SQL.Text + Request.Items[0].Name[idy];
+        if idy<pred(Request.Items[0].Count) then begin
           qry.SQL.Text := qry.SQL.Text + ', ';
         end;
       end;
       //- Values as parameters.
       qry.SQL.Text := qry.SQL.Text + ') VALUES (:KeyField,';
       //- Loop through the fields again and add them as parameters to the query string.
-      for idy := 0 to pred(Request.Items[idx].Count) do begin
-        qry.SQL.Text := qry.SQL.Text + ':' + Request.Items[idx].Name[idy];
-        if idy<pred(Request.Items[idx].Count) then begin
+      for idy := 0 to pred(Request.Items[0].Count) do begin
+        qry.SQL.Text := qry.SQL.Text + ':' + Request.Items[0].Name[idy];
+        if idy<pred(Request.Items[0].Count) then begin
           qry.SQL.Text := qry.SQL.Text + ', ';
         end;
       end;
       qry.SQL.Text := qry.SQL.Text + ');';
       //- Loop through one more time, and set the parameter values.
       qry.Params.ParamByName('KeyField').AsString := Item;
-      for idy := 0 to pred(Request.Items[idx].Count) do begin
-        qry.Params.ParamByName(Request.Items[idx].Name[idy]).AsString := Request.Items[idx].ValueByIndex[idy];
+      for idy := 0 to pred(Request.Items[0].Count) do begin
+        qry.Params.ParamByName(Request.Items[0].Name[idy]).AsString := Request.Items[0].ValueByIndex[idy];
       end;
       //- Attempt to execute the query, if successful, add the created object.
       if ExecuteSQL(qry) then begin
         AnObject := Response.ResponseArray.addItem;
-        AnObject.Assign(Request.Items[idx]);
+        AnObject.Assign(Request.Items[0]);
       end else begin
         Response.ResponseCode := THTTPResponseCode.rc202_Accepted;
       end;
