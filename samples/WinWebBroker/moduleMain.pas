@@ -16,6 +16,8 @@ type
     FDConnection1: TFDConnection;
     RESTProducer1: TRESTProducer;
     procedure WebModule1DefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    procedure WebModule1WebActionItem2Action(Sender: TObject;
+      Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   private
     { Private declarations }
   public
@@ -39,6 +41,13 @@ begin
     '<head><title>Web Server Application</title></head>' +
     '<body>Web Server Application</body>' +
     '</html>';
+end;
+
+procedure TWebModule1.WebModule1WebActionItem2Action(Sender: TObject;
+  Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+begin
+  Response.Content := 'This works';
+  Handled := True;
 end;
 
 end.

@@ -91,22 +91,26 @@ var
 begin
   Result := False;
   Constraint := TConstraint.csUnknown;
-  if Peek<>'[' then begin
-    exit;
+  if Peek='=' then begin
+    ConstraintStr := poke;
+  end else begin
+    if Peek<>'[' then begin
+      exit;
+    end;
+    poke;
+    ConstraintStr := '';
+    while (not EOF) and (Peek<>']') do begin
+      ConstraintStr := ConstraintStr + Poke;
+    end;
+    if EOF then begin
+      exit;
+    end;
+    Poke; // remove the ]
+    if Peek<>'=' then begin
+      exit;
+    end;
+    Poke; // remove the =
   end;
-  poke;
-  ConstraintStr := '';
-  while (not EOF) and (Peek<>']') do begin
-    ConstraintStr := ConstraintStr + Poke;
-  end;
-  if EOF then begin
-    exit;
-  end;
-  Poke; // remove the ]
-  if Peek<>'=' then begin
-    exit;
-  end;
-  Poke; // remove the =
   //- Determine which constraint this is.
   ConstraintStr := Uppercase(Trim(ConstraintStr));
   if ConstraintStr='=' then begin

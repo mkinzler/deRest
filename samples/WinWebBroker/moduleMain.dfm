@@ -6,6 +6,11 @@ object WebModule1: TWebModule1
       Name = 'WebActionItem1'
       PathInfo = '/test'
       Producer = RESTProducer1
+    end
+    item
+      Name = 'WebActionItem2'
+      PathInfo = '/test2'
+      OnAction = WebModule1WebActionItem2Action
     end>
   Height = 230
   Width = 415
