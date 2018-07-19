@@ -8,14 +8,14 @@ uses System.SysUtils, System.Classes, Web.HTTPApp, FireDAC.Stan.Intf,
   Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
   Web.HTTPProd, deREST, FireDAC.UI.Intf, FireDAC.Stan.Def, FireDAC.Stan.Pool,
   FireDAC.Phys, FireDAC.Phys.MySQL, FireDAC.Phys.MySQLDef, FireDAC.FMXUI.Wait,
-  deREST.api;
+  deREST.api, deREST.producer;
 
 type
   TWebModule1 = class(TWebModule)
-    FDConnection1: TFDConnection;
     RESTAPI1: TRESTAPI;
-    procedure WebModule1DefaultHandlerAction(Sender: TObject;
-      Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    FDConnection1: TFDConnection;
+    RESTProducer1: TRESTProducer;
+    procedure WebModule1DefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   private
     { Private declarations }
   public

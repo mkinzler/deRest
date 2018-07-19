@@ -26,7 +26,8 @@ unit deREST;
 interface
 uses
   classes,
-  deREST.api;
+  deREST.api,
+  deREST.producer;
 
 procedure Register;
 
@@ -35,6 +36,7 @@ implementation
 procedure Register;
 begin
   RegisterComponents('deREST', [TRESTAPI]);
+  RegisterComponents('deREST', [TRESTProducer]);
 end;
 
 end.

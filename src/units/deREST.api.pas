@@ -147,17 +147,25 @@ type
     property Items[idx: integer]: TRESTCollection read GetItem write setItem; default;
   end;
 
+  /// <exclude/>
+  ///  Used internally to forward requests from the producer.
+  IProducerDispatch = interface
+    ['{354D621D-50B3-4EAB-8ABD-4BB9E708008B}']
+    procedure ProcessRequest(Dispatcher: IWebDispatcherAccess; ActionPathInfo: string );
+  end;
+
   ///  <summary>
   ///    Represents a REST API (collection of endpoints) as a component to be
   ///    inserted into a web module.
   ///  </summary>
-  TRESTAPI = class(TComponent)
+  TRESTAPI = class(TComponent, IProducerDispatch)
   private
     fCollections: TRESTCollections;
   private
-    procedure WebActionHandler(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
     function getCollections: TRESTCollections;
     procedure setCollections(const Value: TRESTCollections);
+    procedure ProcessRequest(Dispatcher: IWebDispatcherAccess; ActionPathInfo: string);
+    function RemoveActionPath(PathInfo, ActionPathInfo: string): string;
   public
     ///  <exclude/>
     constructor Create( aOwner: TComponent ); override;
@@ -172,6 +180,7 @@ type
 implementation
 uses
   sysutils,
+  strutils,
   deREST.restarray.standard,
   deREST.filterparser,
   deREST.restfilter.standard,
@@ -191,11 +200,6 @@ begin
   end;
   //- Create collections
   fCollections := TRESTCollections.Create(Self);
-  //- Clear out web actions and add our own default.
-  (aOwner as TWebModule).Actions.Clear;
-  Action := (aOwner as TWebModule).Actions.Add;
-  Action.OnAction := WebActionHandler;
-  Action.Default := True;
 end;
 
 function TRESTAPI.getCollections: TRESTCollections;
@@ -208,30 +212,49 @@ begin
   fCollections.Assign(Value);
 end;
 
-procedure TRESTAPI.WebActionHandler(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+function TRESTAPI.RemoveActionPath( PathInfo: string; ActionPathInfo: string ): string;
+var
+  utPathInfo: string;
+  utActionPathInfo: string;
+  Test: string;
+  L: int32;
+begin
+  utPathInfo := Uppercase(Trim(PathInfo));
+  utActionPathInfo := Uppercase(Trim(ActionPathInfo));
+  L := Length(utActionPathInfo);
+  Test := LeftStr(utPathInfo,L);
+  if Test=utActionPathInfo then begin
+    Result := RightStr(PathInfo,Length(PathInfo)-L);
+  end else begin
+    Result := PathInfo;
+  end;
+end;
+
+procedure TRESTAPI.ProcessRequest( Dispatcher: IWebDispatcherAccess; ActionPathInfo: string  );
 var
   utPath: string;
   idx: uint32;
+  PathInfoStr: string;
   PathInfo: TPathInfo;
   Collection: TRESTCollection;
 begin
-  Handled := True;
   if fCollections.Count>0 then begin
     //- Find the REST collection to handle the request.
-    PathInfo := PathInfo.ParsePathInfo(Request.PathInfo);
+    PathInfoStr := RemoveActionPath( Dispatcher.Request.PathInfo, ActionPathInfo );
+    PathInfo := PathInfo.ParsePathInfo(PathInfoStr);
     utPath := Uppercase(Trim(PathInfo.Endpoint));
     for idx := 0 to pred(fCollections.Count) do begin
       Collection := TRESTCollection(fCollections.Items[idx]);
       if Uppercase(Trim(Collection.Endpoint))=utPath then begin
-        TRESTCollection(fCollections.Items[idx]).ProcessRequest(PathInfo,Request,Response);
+        TRESTCollection(fCollections.Items[idx]).ProcessRequest(PathInfo,Dispatcher.Request,Dispatcher.Response);
         exit;
       end;
     end;
   end;
   //- If we get here, something went wrong, let the end user know.
-  Response.Content := 'Endpoint not found.';
-  Response.StatusCode := 500;
-  Response.SendResponse;
+  Dispatcher.Response.Content := 'Endpoint not found.';
+  Dispatcher.Response.StatusCode := 500;
+  Dispatcher.Response.SendResponse;
 end;
 
 { TRESTCollection }
