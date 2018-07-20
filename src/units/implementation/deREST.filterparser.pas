@@ -57,7 +57,7 @@ uses
 
 const
   setAlpha = ['a'..'z','A'..'Z'];
-  setDigits = ['0'..'9'];
+  setDigits = ['0'..'9','.'];
   setIdentifier = ['a'..'z','A'..'Z','0'..'9','_'];
 
 { TRESTFilterParser }
