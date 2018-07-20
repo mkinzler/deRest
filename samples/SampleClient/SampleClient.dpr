@@ -3,12 +3,12 @@ program SampleClient;
 uses
   System.StartUpCopy,
   FMX.Forms,
-  formMain in 'formMain.pas' {Form2};
+  formMain in 'formMain.pas' {frmMain};
 
 {$R *.res}
 
 begin
   Application.Initialize;
-  Application.CreateForm(TForm2, Form2);
+  Application.CreateForm(TfrmMain, frmMain);
   Application.Run;
 end.
