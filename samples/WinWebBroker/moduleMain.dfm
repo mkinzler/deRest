@@ -14,17 +14,6 @@ object WebModule1: TWebModule1
     end>
   Height = 230
   Width = 415
-  object RESTAPI1: TRESTAPI
-    Collections = <
-      item
-        Connection = FDConnection1
-        TableName = 'tbl_forex'
-        KeyField = 'str_pkid'
-        Endpoint = 'forex'
-      end>
-    Left = 56
-    Top = 144
-  end
   object FDConnection1: TFDConnection
     Params.Strings = (
       'Database=forex'
@@ -38,5 +27,16 @@ object WebModule1: TWebModule1
     RESTAPI = RESTAPI1
     Left = 56
     Top = 88
+  end
+  object RESTAPI1: TRESTAPI
+    Collections = <
+      item
+        Connection = FDConnection1
+        TableName = 'tbl_forex'
+        KeyField = 'str_pkid'
+        Endpoint = 'forex'
+      end>
+    Left = 56
+    Top = 144
   end
 end

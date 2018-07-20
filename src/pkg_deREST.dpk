@@ -45,6 +45,7 @@ contains
   deREST.pathinfo in 'units\implementation\deREST.pathinfo.pas',
   deREST.types in 'units\deREST.types.pas',
   deREST.api in 'units\deREST.api.pas',
-  deREST.producer in 'units\deREST.producer.pas';
+  deREST.producer in 'units\deREST.producer.pas',
+  deREST.authenticator in 'units\deREST.authenticator.pas';
 
 end.

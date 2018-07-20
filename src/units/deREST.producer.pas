@@ -36,9 +36,10 @@ type
     fRestAPI: TRESTAPI;
     function FindWebAction: TWebActionItem;
   protected
-    function Content: string; override;
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     constructor Create( aOwner: TComponent ); override;
+    function Content: string; override;
   published
     property RESTAPI: TRESTAPI read fRestAPI write fRESTAPI;
   end;
@@ -96,6 +97,14 @@ begin
     exit;
   end;
   (fRestAPI as IProducerDispatch).ProcessRequest(Dispatcher,Action.PathInfo);
+end;
+
+procedure TRESTProducer.Notification(AComponent: TComponent; Operation: TOperation);
+begin
+  if (Operation=TOperation.opRemove) and (AComponent=fRESTAPI) then begin
+    fRESTAPI := nil;
+  end;
+  inherited;
 end;
 
 

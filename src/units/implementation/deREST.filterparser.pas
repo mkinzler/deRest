@@ -217,7 +217,7 @@ begin
         SetLength(ByteArray, succ(Length(ByteArray)));
         ByteArray[pred(Length(ByteArray))] := StrToInt(Hex);
       end;
-      Result := Result + UTF8Decode(RawByteString(ByteArray));
+      Result := Result + UTF8ToString(RawByteString(ByteArray));
     end else begin
       Result := Result + SourceStr[Cursor];
       inc(Cursor);

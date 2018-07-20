@@ -8,16 +8,15 @@ uses System.SysUtils, System.Classes, Web.HTTPApp, FireDAC.Stan.Intf,
   Data.DB, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
   Web.HTTPProd, deREST, FireDAC.UI.Intf, FireDAC.Stan.Def, FireDAC.Stan.Pool,
   FireDAC.Phys, FireDAC.Phys.MySQL, FireDAC.Phys.MySQLDef, FireDAC.FMXUI.Wait,
-  deREST.api, deREST.producer;
+  deREST.api, deREST.producer, deREST.authenticator;
 
 type
   TWebModule1 = class(TWebModule)
-    RESTAPI1: TRESTAPI;
     FDConnection1: TFDConnection;
     RESTProducer1: TRESTProducer;
+    RESTAPI1: TRESTAPI;
     procedure WebModule1DefaultHandlerAction(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
-    procedure WebModule1WebActionItem2Action(Sender: TObject;
-      Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
+    procedure WebModule1WebActionItem2Action(Sender: TObject; Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);
   private
     { Private declarations }
   public
@@ -32,6 +31,7 @@ implementation
 {%CLASSGROUP 'FMX.Controls.TControl'}
 
 {$R *.dfm}
+
 
 procedure TWebModule1.WebModule1DefaultHandlerAction(Sender: TObject;
   Request: TWebRequest; Response: TWebResponse; var Handled: Boolean);

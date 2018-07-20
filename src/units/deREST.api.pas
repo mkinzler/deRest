@@ -29,6 +29,7 @@ uses
   FireDAC.DApt,
   Web.HTTPApp,
   FireDAC.Comp.Client,
+  deREST.authenticator,
   deREST.pathinfo,
   deREST.types,
   classes;
@@ -161,12 +162,17 @@ type
   ///  </summary>
   TRESTAPI = class(TComponent, IProducerDispatch)
   private
+    fAuthenticator: TRESTAuthenticator;
     fCollections: TRESTCollections;
   private
     function getCollections: TRESTCollections;
     procedure setCollections(const Value: TRESTCollections);
     procedure ProcessRequest(Dispatcher: IWebDispatcherAccess; ActionPathInfo: string);
     function RemoveActionPath(PathInfo, ActionPathInfo: string): string;
+    function AttemptAuthentication(Dispatcher: IWebDispatcherAccess): boolean;
+    procedure FailedAuthentication(Dispatcher: IWebDispatcherAccess; BecauseMethod: boolean = FALSE );
+  protected
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     ///  <exclude/>
     constructor Create( aOwner: TComponent ); override;
@@ -176,6 +182,13 @@ type
     ///    this API.
     ///  </summary>
     property Collections: TRESTCollections read getCollections write setCollections;
+
+    ///  <summary>
+    ///    Reference to an authenticator component to handle authentication of
+    ///    REST Requests. If no authenticator is set, all requests will be
+    ///    permitted without authentication.
+    ///  </summary>
+    property Authenticator: TRESTAuthenticator read fAuthenticator write fAuthenticator;
   end;
 
 implementation
@@ -201,11 +214,20 @@ begin
   end;
   //- Create collections
   fCollections := TRESTCollections.Create(Self);
+  fAuthenticator := nil;
 end;
 
 function TRESTAPI.getCollections: TRESTCollections;
 begin
   Result := fCollections;
+end;
+
+procedure TRESTAPI.Notification(AComponent: TComponent; Operation: TOperation);
+begin
+  if (Operation=TOperation.opRemove) and (AComponent=fAuthenticator) then begin
+    fAuthenticator := nil;
+  end;
+  inherited;
 end;
 
 procedure TRESTAPI.setCollections(const Value: TRESTCollections);
@@ -236,6 +258,40 @@ begin
   end;
 end;
 
+procedure TRESTAPI.FailedAuthentication( Dispatcher: IWebDispatcherAccess; BecauseMethod: boolean = FALSE );
+begin
+  Dispatcher.Response.StatusCode := 500;
+  Dispatcher.Response.Content := 'Authentication Failed';
+  if BecauseMethod then begin
+    Dispatcher.Response.Content := 'Authentication Failed. Requested HTTP Method not supported.';
+  end;
+  Dispatcher.Response.SendResponse;
+end;
+
+function TRESTAPI.AttemptAuthentication( Dispatcher: IWebDispatcherAccess ): boolean;
+var
+  Operation: TCRUDMethod;
+begin
+  Result := False;
+  case Dispatcher.Request.MethodType of
+    mtGet: Operation := TCRUDMethod.cmRead;
+    mtPut: Operation := TCRUDMethod.cmUpdate;
+    mtPost: Operation := TCRUDMethod.cmCreate;
+    mtDelete: Operation := TCRUDMethod.cmDelete;
+    else begin
+      FailedAuthentication( Dispatcher, TRUE );
+      exit;
+    end;
+  end;
+  if assigned(fAuthenticator) then begin
+    if not (fAuthenticator as IRequestAuthentication).Authenticate(Operation,Dispatcher.Request.PathInfo,Dispatcher.Request) then begin
+      FailedAuthentication( Dispatcher );
+      exit;
+    end;
+  end;
+  Result := True;
+end;
+
 procedure TRESTAPI.ProcessRequest( Dispatcher: IWebDispatcherAccess; ActionPathInfo: string  );
 var
   utPath: string;
@@ -252,6 +308,9 @@ begin
     for idx := 0 to pred(fCollections.Count) do begin
       Collection := TRESTCollection(fCollections.Items[idx]);
       if Uppercase(Trim(Collection.Endpoint))=utPath then begin
+        if not AttemptAuthentication( Dispatcher ) then begin
+          exit;
+        end;
         TRESTCollection(fCollections.Items[idx]).ProcessRequest(PathInfo,Dispatcher.Request,Dispatcher.Response);
         exit;
       end;

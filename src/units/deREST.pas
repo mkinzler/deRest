@@ -27,7 +27,8 @@ interface
 uses
   classes,
   deREST.api,
-  deREST.producer;
+  deREST.producer,
+  deREST.authenticator;
 
 procedure Register;
 
@@ -37,6 +38,7 @@ procedure Register;
 begin
   RegisterComponents('deREST', [TRESTAPI]);
   RegisterComponents('deREST', [TRESTProducer]);
+  RegisterComponents('deREST', [TRESTAuthenticator]);
 end;
 
 end.

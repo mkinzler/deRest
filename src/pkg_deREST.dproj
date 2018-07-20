@@ -160,6 +160,7 @@
         <DCCReference Include="units\deREST.types.pas"/>
         <DCCReference Include="units\deREST.api.pas"/>
         <DCCReference Include="units\deREST.producer.pas"/>
+        <DCCReference Include="units\deREST.authenticator.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
