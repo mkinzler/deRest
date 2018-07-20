@@ -1,0 +1,34 @@
+object Form2: TForm2
+  Left = 0
+  Top = 0
+  Caption = 'Form2'
+  ClientHeight = 480
+  ClientWidth = 640
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 0
+  object RESTClient1: TRESTClient
+    Accept = 'application/json, text/plain; q=0.9, text/html;q=0.8,'
+    AcceptCharset = 'UTF-8, *;q=0.8'
+    BaseURL = 'http://localhost:8080/'
+    Params = <>
+    HandleRedirects = True
+    Left = 56
+    Top = 168
+  end
+  object RESTRequest1: TRESTRequest
+    Client = RESTClient1
+    Params = <>
+    Resource = 'test/forex'
+    Response = RESTResponse1
+    SynchronizedEvents = False
+    Left = 56
+    Top = 240
+  end
+  object RESTResponse1: TRESTResponse
+    ContentType = 'text/html'
+    Left = 56
+    Top = 304
+  end
+end

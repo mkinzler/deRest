@@ -9,6 +9,9 @@
         <Projects Include="samples\WinWebBroker\WinWebBroker.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="samples\SampleClient\SampleClient.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -35,14 +38,23 @@
     <Target Name="WinWebBroker:Make">
         <MSBuild Projects="samples\WinWebBroker\WinWebBroker.dproj" Targets="Make"/>
     </Target>
+    <Target Name="SampleClient">
+        <MSBuild Projects="samples\SampleClient\SampleClient.dproj"/>
+    </Target>
+    <Target Name="SampleClient:Clean">
+        <MSBuild Projects="samples\SampleClient\SampleClient.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SampleClient:Make">
+        <MSBuild Projects="samples\SampleClient\SampleClient.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="pkg_deREST;WinWebBroker"/>
+        <CallTarget Targets="pkg_deREST;WinWebBroker;SampleClient"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="pkg_deREST:Clean;WinWebBroker:Clean"/>
+        <CallTarget Targets="pkg_deREST:Clean;WinWebBroker:Clean;SampleClient:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="pkg_deREST:Make;WinWebBroker:Make"/>
+        <CallTarget Targets="pkg_deREST:Make;WinWebBroker:Make;SampleClient:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

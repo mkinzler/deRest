@@ -220,13 +220,13 @@ var
   Test: string;
   L: int32;
 begin
+  utPathInfo := Uppercase(Trim(PathInfo));
+  utActionPathInfo := Uppercase(Trim(ActionPathInfo));
   if (utActionPathInfo='') or (utActionPathInfo='/') then begin
     Result := PathInfo;
     exit;
   end;
   //- Else
-  utPathInfo := Uppercase(Trim(PathInfo));
-  utActionPathInfo := Uppercase(Trim(ActionPathInfo));
   L := Length(utActionPathInfo);
   Test := LeftStr(utPathInfo,L);
   if Test=utActionPathInfo then begin
