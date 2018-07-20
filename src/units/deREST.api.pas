@@ -35,6 +35,23 @@ uses
   classes;
 
 type
+  /// <exclude/>
+  THTTPResponseCode = deREST.types.THTTPResponseCode;
+  /// <exclude/>
+  IRESTFilterGroup = deREST.types.IRESTFilterGroup;
+  /// <exclude/>
+  IRESTFilterItem = deREST.types.IRESTFilterItem;
+  /// <exclude/>
+  IRESTFilter = deREST.types.IRESTFilter;
+  /// <exclude>
+  IRESTObject = deREST.types.IRESTObject;
+  /// <exclude/>
+  IRESTArray = deREST.types.IRESTArray;
+  /// <exclude/>
+  IRESTResponse = deREST.types.IRESTResponse;
+
+
+type
   ///  <summary>
   ///    Represents a rest collection which is exposed through the TRESTAPI
   ///  </summary>
