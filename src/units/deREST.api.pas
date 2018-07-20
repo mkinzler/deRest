@@ -26,6 +26,7 @@ unit deREST.api;
 interface
 uses
   Data.DB,
+  FireDAC.DApt,
   Web.HTTPApp,
   FireDAC.Comp.Client,
   deREST.pathinfo,
@@ -219,6 +220,11 @@ var
   Test: string;
   L: int32;
 begin
+  if (utActionPathInfo='') or (utActionPathInfo='/') then begin
+    Result := PathInfo;
+    exit;
+  end;
+  //- Else
   utPathInfo := Uppercase(Trim(PathInfo));
   utActionPathInfo := Uppercase(Trim(ActionPathInfo));
   L := Length(utActionPathInfo);
