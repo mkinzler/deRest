@@ -1029,15 +1029,15 @@ begin
   Response.StatusCode := int32(RESTResponse.ResponseCode);
   if (Response.StatusCode>199) and (Response.StatusCode<300) then begin
     if RESTResponse.ResponseArray.Serialize(Str) then begin
-      Response.ContentType := 'application\json';
+      Response.ContentType := 'application\json; charset="UTF-8"';
       Response.Content := Str;
     end else begin
       Response.StatusCode := 500;
-      Response.ContentType := 'text\plain';
+      Response.ContentType := 'text\plain; charset="UTF-8"';
       Response.Content := 'Failed to serialize response JSON.';
     end;
   end else begin
-    Response.ContentType := 'text\plain';
+    Response.ContentType := 'text\plain; charset="UTF-8"';
     Response.Content := RESTResponse.ResponseMessage;
   end;
   Response.SendResponse;
