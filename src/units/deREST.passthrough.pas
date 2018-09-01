@@ -525,7 +525,6 @@ end;
 procedure TRESTPassthrough.Execute(Dispatcher: IWebDispatcherAccess);
 var
   Path: string;
-  FS: TFileStream;
 begin
   // Where is the file that we're looking for?
   Path := Dispatcher.Request.TranslateURI(Dispatcher.Request.PathInfo);
