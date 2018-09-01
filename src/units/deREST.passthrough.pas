@@ -32,13 +32,18 @@ uses
 type
   TRESTPassthrough = class(TComponent)
   private
+    fDefaultFiles: TStrings;
     fRootDirectory: string;
     function GetMimeType(Ext: string): string;
+    function DefaultFileIfExists: string;
+    function RemoveDoubleSeparators(SourceStr: string): string;
   protected
     { Protected declarations }
   public
     procedure Execute( Dispatcher: IWebDispatcherAccess );
+    constructor Create( aOwner: TComponent ); override;
   published
+    property DefaultFiles: TStrings read fDefaultFiles;
     property RootDirectory: string read fRootDirectory write fRootDirectory;
   end;
 
@@ -522,6 +527,44 @@ begin
 end;
 
 
+constructor TRESTPassthrough.Create(aOwner: TComponent);
+begin
+  inherited Create( aOwner );
+  fDefaultFiles := TStringList.Create;
+  fDefaultFiles.Add('index.html');
+  fDefaultFiles.Add('index.php');
+end;
+
+function TRESTPassThrough.RemoveDoubleSeparators( SourceStr: string ): string;
+var
+  WorkStr: string;
+begin
+  WorkStr := SourceStr;
+  while Pos(cPathSeparator+cPathSeparator,WorkStr)>0 do begin
+    WorkStr := StringReplace(WorkStr,cPathSeparator+cPathSeparator,cPathSeparator,[rfReplaceAll, rfIgnoreCase]);
+  end;
+  Result := WorkStr;
+end;
+
+function TRESTPassThrough.DefaultFileIfExists: string;
+var
+  idx: int32;
+  Path: string;
+begin
+  Result := '';
+  if fDefaultFiles.Count=0 then begin
+    exit;
+  end;
+  for idx := 0 to pred(fDefaultFiles.Count) do begin
+    Path := fRootDirectory + cPathSeparator + fDefaultFiles[idx];
+    Path := RemoveDoubleSeparators( Path );
+    if FileExists(Path) then begin
+      Result := Path;
+      exit;
+    end;
+  end;
+end;
+
 procedure TRESTPassthrough.Execute(Dispatcher: IWebDispatcherAccess);
 var
   Path: string;
@@ -531,8 +574,13 @@ begin
   {$ifdef MSWINDOWS}
   Path := StringReplace(Path,'/',cPathSeparator,[rfReplaceAll, rfIgnoreCase]);
   {$endif}
-  Path := fRootDirectory + Path;
-  Path := StringReplace(Path,cPathSeparator+cPathSeparator,cPathSeparator,[rfReplaceAll, rfIgnoreCase]);
+  // Check to see if path is root, and test for default file-names.
+  if (Path='') or (Path=cPathSeparator) then begin
+    Path := DefaultFileIfExists;
+  end else begin
+    Path := fRootDirectory + Path;
+    Path := RemoveDoubleSeparators(Path);
+  end;
   // If the file does not exist.
   if not FileExists(Path) then begin
     Dispatcher.Response.Content := 'Endpoint not found.';
