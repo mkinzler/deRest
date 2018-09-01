@@ -46,6 +46,7 @@ contains
   deREST.types in 'units\deREST.types.pas',
   deREST.api in 'units\deREST.api.pas',
   deREST.producer in 'units\deREST.producer.pas',
-  deREST.authenticator in 'units\deREST.authenticator.pas';
+  deREST.authenticator in 'units\deREST.authenticator.pas',
+  deREST.passthrough in 'units\deREST.passthrough.pas';
 
 end.

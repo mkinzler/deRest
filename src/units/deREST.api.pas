@@ -30,6 +30,7 @@ uses
   Web.HTTPApp,
   FireDAC.Comp.Client,
   deREST.authenticator,
+  deREST.passthrough,
   deREST.pathinfo,
   deREST.types,
   classes;
@@ -179,6 +180,7 @@ type
   ///  </summary>
   TRESTAPI = class(TComponent, IProducerDispatch)
   private
+    fPassthrough: TRESTPassthrough;
     fAuthenticator: TRESTAuthenticator;
     fCollections: TRESTCollections;
   private
@@ -206,6 +208,13 @@ type
     ///    permitted without authentication.
     ///  </summary>
     property Authenticator: TRESTAuthenticator read fAuthenticator write fAuthenticator;
+
+    ///  <summary>
+    ///    Refernece to a passthrough component which will be used to handle
+    ///    any requests which are not identified against an endpoint.
+    ///    If unassigned and the end-point is not found, a 404 is returned.
+    ///  </summary>
+    property Passthrough: TRESTPassthrough read fPassthrough write fPassthrough;
   end;
 
 implementation
@@ -219,8 +228,6 @@ uses
 
 
 constructor TRESTAPI.Create(aOwner: TComponent);
-var
-  Action: TWebActionItem;
 begin
   inherited Create(aOwner);
   // Ensure the rest manager component is installed on a web module,
@@ -232,6 +239,7 @@ begin
   //- Create collections
   fCollections := TRESTCollections.Create(Self);
   fAuthenticator := nil;
+  fPassthrough := nil;
 end;
 
 function TRESTAPI.getCollections: TRESTCollections;
@@ -277,7 +285,7 @@ end;
 
 procedure TRESTAPI.FailedAuthentication( Dispatcher: IWebDispatcherAccess; BecauseMethod: boolean = FALSE );
 begin
-  Dispatcher.Response.StatusCode := 500;
+  Dispatcher.Response.StatusCode := integer(THTTPResponseCode.rc500_InternalServerError);
   Dispatcher.Response.Content := 'Authentication Failed';
   if BecauseMethod then begin
     Dispatcher.Response.Content := 'Authentication Failed. Requested HTTP Method not supported.';
@@ -333,10 +341,14 @@ begin
       end;
     end;
   end;
-  //- If we get here, something went wrong, let the end user know.
-  Dispatcher.Response.Content := 'Endpoint not found.';
-  Dispatcher.Response.StatusCode := 500;
-  Dispatcher.Response.SendResponse;
+  if assigned(fPassthrough) then begin
+    fPassthrough.Execute(Dispatcher);
+  end else begin
+    //- If we get here, something went wrong, let the end user know.
+    Dispatcher.Response.Content := 'Endpoint not found.';
+    Dispatcher.Response.StatusCode := integer(THTTPResponseCode.rc404_NotFound);
+    Dispatcher.Response.SendResponse;
+  end;
 end;
 
 { TRESTCollection }
@@ -1032,7 +1044,7 @@ begin
       Response.ContentType := 'application\json; charset="UTF-8"';
       Response.Content := Str;
     end else begin
-      Response.StatusCode := 500;
+      Response.StatusCode := integer(THTTPResponseCode.rc500_InternalServerError);
       Response.ContentType := 'text\plain; charset="UTF-8"';
       Response.Content := 'Failed to serialize response JSON.';
     end;

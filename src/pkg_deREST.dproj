@@ -6,7 +6,7 @@
         <FrameworkType>VCL</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
-        <Platform Condition="'$(Platform)'==''">Win64</Platform>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Package</AppType>
     </PropertyGroup>
@@ -164,6 +164,7 @@
         <DCCReference Include="units\deREST.api.pas"/>
         <DCCReference Include="units\deREST.producer.pas"/>
         <DCCReference Include="units\deREST.authenticator.pas"/>
+        <DCCReference Include="units\deREST.passthrough.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
