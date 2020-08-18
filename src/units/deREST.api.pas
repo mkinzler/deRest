@@ -85,7 +85,7 @@ type
     function VerifyTable(Response: IRESTResponse): boolean;
     function ApplyWhereClause(qry: TFDQuery; Filters: IRESTFilterGroup; Response: IRESTResponse): boolean;
     function ExecuteQuery(qry: TFDQuery; Response: IRESTResponse): boolean;
-    function ExecuteSQL(qry: TFDQuery): boolean;
+    function ExecuteSQL(qry: TFDQuery; useRet: Boolean = False): boolean;
     function DBObjectToResponse(qry: TFDQuery; Response: IRESTResponse): boolean;
     function ModifyDBObject(qry: TFDQuery; Request: IRESTArray): boolean;
     function ItemExists(ItemID: string): boolean;
@@ -219,7 +219,7 @@ type
 
 implementation
 uses
-  sysutils,
+  sysutils,  vcl.Dialogs,
   strutils,
   deREST.restarray.standard,
   deREST.filterparser,
@@ -464,11 +464,14 @@ begin
   Result := True;
 end;
 
-function TRESTCollection.ExecuteSQL( qry: TFDQuery ): boolean;
+function TRESTCollection.ExecuteSQL( qry: TFDQuery; useRet: Boolean = False ): boolean;
 begin
   Result := False;
   try
-    qry.ExecSQL;
+    if useRet then 
+	  qry.Open
+	else  
+      qry.ExecSQL;
   except
     on E: Exception do begin
       exit;
@@ -736,8 +739,11 @@ procedure TRESTCollection.ProcessCreate( Request: IRESTArray; Response: IRESTRes
 var
   idx,idy: uint32;
   AnObject: IRESTObject;
-  qry: TFDQuery;
+  qry, qry2: TFDQuery;
+  withReturning: Boolean;
+  retField, retValue: String;
 begin
+  withReturning := False;
   //- If there are no items to create, we return successful creation of zero objects..
   if Request.Count=0 then begin
     Response.ResponseCode := THTTPResponseCode.rc200_OK;
@@ -781,15 +787,47 @@ begin
             qry.SQL.Text := qry.SQL.Text + ', ';
           end;
         end;
-        qry.SQL.Text := qry.SQL.Text + ');';
+        qry.SQL.Text := qry.SQL.Text + ') ';
         //- Loop through one more time, and set the parameter values.
         for idy := 0 to pred(Request.Items[idx].Count) do begin
           qry.Params.ParamByName(Request.Items[idx].Name[idy]).AsString := Request.Items[idx].ValueByIndex[idy];
         end;
+        //- Add returning clause for pk (ib/fb)
+        if (fConnection.DriverName = 'IB') or (fConnection.DriverName = 'FB') then
+        begin
+          //-  Is there a pk?
+           qry2 := TFDQuery.Create(nil);
+
+           try
+             qry2.Connection := fConnection;
+             qry2.SQL.Text := 'select c.RDB$RELATION_NAME, s.RDB$FIELD_NAME '+
+                               'from RDB$RELATION_CONSTRAINTS c ' +
+                               'join RDB$INDICES i on i.RDB$INDEX_NAME = c.RDB$INDEX_NAME ' +
+                               'join RDB$INDEX_SEGMENTS s on s.RDB$INDEX_NAME = c.RDB$INDEX_NAME ' +
+                               'where c.RDB$CONSTRAINT_TYPE = ''PRIMARY KEY'' and c.RDB$RELATION_NAME = Upper(:table);';
+             qry2.Params[0].Value := fTablename;
+
+             Qry2.Open;
+             if Qry2.RecordCount > 0 then
+             begin
+                qry.SQL.Text := qry.SQL.Text + ' RETURNING ' + Qry2.FieldByName( 'RDB$FIELD_NAME').Value;
+                withReturning := True;
+                //showmessage(qry.SQL.Text);
+				        retField := Qry2.FieldByName( 'RDB$FIELD_NAME').Value;
+             end;
+             qry.SQL.Text := qry.SQL.Text + ';';
+           finally
+             qry2.DisposeOf;
+           end;
+        end;
         //- Attempt to execute the query, if successful, add the created object.
-        if ExecuteSQL(qry) then begin
+        if ExecuteSQL(qry, withReturning) then begin
           AnObject := Response.ResponseArray.addItem;
           AnObject.Assign(Request.Items[idx]);
+          if withReturning then
+          begin
+			      retValue := qry.Fields[0].Value;
+          end;
         end else begin
           Response.ResponseCode := THTTPResponseCode.rc202_Accepted;
         end;
@@ -800,6 +838,8 @@ begin
     qry.DisposeOf;
   end;
   Response.ResponseCode := THTTPResponseCode.rc200_OK;
+  AnObject := Response.ResponseArray.addItem;
+  anObject.AddValue( retField, retValue);
   Response.Complete := True;
 end;
 
